@@ -1,4 +1,4 @@
-FROM python:3.10-slim as base
+FROM python:3.10-slim AS base
 
 # Setup environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -18,7 +18,7 @@ RUN pip install --upgrade pip && \
 COPY . .
 
 # Production specific configuration
-FROM base as production
+FROM base AS production
 
 # Create non-root user for security
 RUN useradd -m -s /bin/bash app && \
@@ -29,7 +29,7 @@ USER app
 CMD ["gunicorn", "--bind", "0.0.0.0:8000", "health_system.wsgi:application"]
 
 # Development specific configuration
-FROM base as development
+FROM base AS development
 
 # Install development dependencies
 RUN pip install pytest-watch ipython django-debug-toolbar

@@ -1,12 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-# Import views as needed when we implement them
-# from .views import NotificationViewSet
+from . import views
 
-# Create a router and register our viewsets
 router = DefaultRouter()
-# router.register(r'notifications', NotificationViewSet, basename='notification')
+router.register('notifications', views.NotificationViewSet, basename='notifications')
+router.register('templates', views.NotificationTemplateViewSet, basename='notification-templates')
+router.register('reminders', views.AppointmentReminderViewSet, basename='appointment-reminders')
 
 urlpatterns = [
     path('', include(router.urls)),
