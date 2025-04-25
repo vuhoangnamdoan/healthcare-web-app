@@ -1,23 +1,28 @@
-from django.urls import path
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from . import views
+from rest_framework_simplejwt.views import TokenRefreshView
 
-app_name = 'users'
+from .views import (
+    RegisterView, LoginView, UserProfileView, ChangePasswordView,
+    DoctorRegistrationView, PatientProfileViewSet, DoctorProfileViewSet
+)
 
+# Create a router and register our viewsets
 router = DefaultRouter()
-# These will be added when we implement the views
-# router.register(r'patients', views.PatientViewSet)
-# router.register(r'doctors', views.DoctorViewSet)
+router.register(r'patients', PatientProfileViewSet, basename='patient')
+router.register(r'doctors', DoctorProfileViewSet, basename='doctor')
 
 urlpatterns = [
-    # Basic auth endpoints
-    path('register/', views.RegisterView.as_view(), name='register'),
-    path('login/', views.LoginView.as_view(), name='login'),
-    path('logout/', views.LogoutView.as_view(), name='logout'),
-    path('profile/', views.UserProfileView.as_view(), name='profile'),
+    # Authentication endpoints
+    path('register/', RegisterView.as_view(), name='register'),
+    path('login/', LoginView.as_view(), name='login'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('profile/', UserProfileView.as_view(), name='profile'),
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     
-    # Admin-only endpoints
-    path('admin/doctors/register/', views.DoctorRegistrationView.as_view(), name='doctor-register'),
+    # Admin-only doctor registration
+    path('register-doctor/', DoctorRegistrationView.as_view(), name='register-doctor'),
+    
+    # Include router URLs
+    path('', include(router.urls)),
 ]
-
-urlpatterns += router.urls
