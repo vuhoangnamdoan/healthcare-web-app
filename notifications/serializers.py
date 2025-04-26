@@ -1,11 +1,11 @@
 from rest_framework import serializers
 from .models import Notification, NotificationTemplate, AppointmentReminder
-from users.serializers import UserBasicSerializer
+from users.serializers import UserSerializer
 
 
 class NotificationSerializer(serializers.ModelSerializer):
     """Serializer for user notifications"""
-    recipient_details = UserBasicSerializer(source='recipient', read_only=True)
+    recipient_details = UserSerializer(source='recipient', read_only=True)
     
     class Meta:
         model = Notification
@@ -39,7 +39,7 @@ class NotificationTemplateSerializer(serializers.ModelSerializer):
 
 class AppointmentReminderSerializer(serializers.ModelSerializer):
     """Serializer for appointment reminders"""
-    recipient_details = UserBasicSerializer(source='recipient', read_only=True)
+    recipient_details = UserSerializer(source='recipient', read_only=True)
     
     class Meta:
         model = AppointmentReminder

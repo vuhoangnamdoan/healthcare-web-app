@@ -28,6 +28,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     - complete: Mark an appointment as completed
     - reschedule: Reschedule an existing appointment
     """
+    queryset = Appointment.objects.all()
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options']
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['reason', 'notes', 'doctor__first_name', 'doctor__last_name', 'patient__first_name', 'patient__last_name']
     ordering_fields = ['date', 'start_time', 'status', 'created_at']
@@ -256,6 +258,7 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['date', 'start_time']
     ordering = ['date', 'start_time']
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options']
     
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -307,18 +310,17 @@ class AvailabilitySlotViewSet(viewsets.ModelViewSet):
             except DoctorProfile.DoesNotExist:
                 return AvailabilitySlot.objects.none()
         
-        # For patients and admins, show all available slots
-        if user.role == 'patient':
-            return queryset.filter(is_available=True)
-        
-        # For admins, show all slots
+        # For admins and patients, return the filtered queryset
         return queryset
-    
+        
     def perform_create(self, serializer):
-        """Set the doctor ID automatically if the user is a doctor"""
+        """Set doctor_id if the request is made by a doctor"""
         if self.request.user.role == 'doctor':
-            doctor_profile = DoctorProfile.objects.get(user=self.request.user)
-            serializer.save(doctor_id=doctor_profile.doctor_id)
+            try:
+                doctor_profile = DoctorProfile.objects.get(user=self.request.user)
+                serializer.save(doctor_id=doctor_profile.doctor_id)
+            except DoctorProfile.DoesNotExist:
+                serializer.save()
         else:
             serializer.save()
             

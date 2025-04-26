@@ -81,9 +81,9 @@ class NotificationTemplate(models.Model):
         (APPOINTMENT_CANCELLATION, _('Appointment Cancellation')),
     ]
     
-    name = models.CharField(max_length=100)
-    template_type = models.CharField(max_length=50, choices=TEMPLATE_TYPE_CHOICES)
-    content = models.TextField(help_text=_("Use {patient_name}, {doctor_name}, {date}, {time}, etc. as placeholders"))
+    name = models.CharField(max_length=100, default="Default Template")
+    template_type = models.CharField(max_length=50, choices=TEMPLATE_TYPE_CHOICES, default=APPOINTMENT_REMINDER)
+    content = models.TextField(help_text=_("Use {patient_name}, {doctor_name}, {date}, {time}, etc. as placeholders"), default="")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
