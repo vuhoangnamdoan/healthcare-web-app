@@ -64,8 +64,8 @@ class DoctorProfileSerializer(serializers.ModelSerializer):
 class DoctorRegistrationSerializer(serializers.ModelSerializer):
     """Serializer for doctor registration (admin only)"""
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    specialization = serializers.CharField(required=True)
-    years_of_experience = serializers.IntegerField(required=True)
+    specialization = serializers.CharField(required=True, write_only=True)
+    years_of_experience = serializers.IntegerField(required=True, write_only=True)
     
     class Meta:
         model = User

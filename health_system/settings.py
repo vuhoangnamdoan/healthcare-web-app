@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_cryptography',
     'rest_framework_simplejwt',
+    'drf_yasg',  # Swagger/OpenAPI documentation
     
     # Microservice apps
     'users',

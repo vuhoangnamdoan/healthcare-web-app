@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django_cryptography.fields import encrypt
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 import uuid
 
 
@@ -10,6 +11,7 @@ class Appointment(models.Model):
     
     # Status choices for appointment
     PENDING = 'pending'
+    SCHEDULED = 'scheduled'
     CONFIRMED = 'confirmed'
     CANCELLED = 'cancelled'
     COMPLETED = 'completed'
@@ -18,6 +20,7 @@ class Appointment(models.Model):
     
     STATUS_CHOICES = [
         (PENDING, _('Pending')),
+        (SCHEDULED, _('Scheduled')),
         (CONFIRMED, _('Confirmed')),
         (CANCELLED, _('Cancelled')),
         (COMPLETED, _('Completed')),
@@ -41,7 +44,7 @@ class Appointment(models.Model):
     notes = encrypt(models.TextField(blank=True))
     
     # Appointment status
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default=PENDING)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default=SCHEDULED)
     
     # Appointment metadata
     created_at = models.DateTimeField(auto_now_add=True)
@@ -58,9 +61,109 @@ class Appointment(models.Model):
         ]
     
     def save(self, *args, **kwargs):
-        if not self.appointment_id:
+        # Check if this is a new appointment or status is changed
+        is_new = not self.pk
+        
+        if is_new:
             self.appointment_id = f"APT-{uuid.uuid4().hex[:8].upper()}"
+        else:
+            # Get the previous state from the database
+            try:
+                old_instance = Appointment.objects.get(pk=self.pk)
+                old_status = old_instance.status
+                status_changed = old_status != self.status
+                date_changed = old_instance.date != self.date
+            except Appointment.DoesNotExist:
+                status_changed = False
+                date_changed = False
+                
+        # Save the appointment first
         super().save(*args, **kwargs)
+        
+        # Handle automated actions after save
+        if is_new or (status_changed or date_changed):
+            self._handle_reminders()
+    
+    def _handle_reminders(self):
+        """
+        Handle reminder creation or cancellation based on appointment status
+        """
+        try:
+            from notifications.utils import cancel_reminder
+            from notifications.models import AppointmentReminder, NotificationTemplate, Notification
+            from datetime import datetime, timedelta
+            
+            # If appointment is cancelled, remove any pending reminders
+            if self.status == self.CANCELLED:
+                cancel_reminder(self.appointment_id)
+                return
+                
+            # For scheduled and confirmed appointments, create reminders if needed
+            if self.status in [self.SCHEDULED, self.CONFIRMED]:
+                # Check if the appointment date is within the reminder window (e.g., next 7 days)
+                today = timezone.now().date()
+                days_until_appointment = (self.date - today).days
+                
+                if 0 <= days_until_appointment <= 7:
+                    # Check if a reminder already exists
+                    existing_reminder = AppointmentReminder.objects.filter(
+                        appointment_id=self.appointment_id,
+                        status='pending'
+                    ).exists()
+                    
+                    if not existing_reminder:
+                        # Create reminder messages
+                        try:
+                            template = NotificationTemplate.objects.get(template_type='appointment_reminder')
+                            patient_message = template.content.format(
+                                patient_name=f"{self.patient.first_name} {self.patient.last_name}",
+                                doctor_name=f"{self.doctor.first_name} {self.doctor.last_name}",
+                                date=self.date.strftime("%B %d, %Y"),
+                                time=self.start_time.strftime("%I:%M %p"),
+                                location="Online",
+                                duration=f"{self.duration_minutes} minutes"
+                            )
+                        except (NotificationTemplate.DoesNotExist, KeyError):
+                            patient_message = (
+                                f"Reminder: You have an appointment with Dr. {self.doctor.last_name} "
+                                f"on {self.date.strftime('%B %d, %Y')} at {self.start_time.strftime('%I:%M %p')}. "
+                                f"Please be on time."
+                            )
+                            
+                        # Create reminder time for 8 AM on appointment day
+                        reminder_time = datetime.combine(
+                            self.date, 
+                            datetime.strptime("08:00", "%H:%M").time()
+                        )
+                        reminder_time = timezone.make_aware(reminder_time)
+                        
+                        # Create reminder for patient
+                        AppointmentReminder.objects.create(
+                            appointment_id=self.appointment_id,
+                            recipient=self.patient,
+                            scheduled_time=reminder_time,
+                            message=patient_message,
+                            status='pending'
+                        )
+                        
+                        # Create reminder for doctor
+                        doctor_message = (
+                            f"Reminder: You have an appointment with {self.patient.first_name} "
+                            f"{self.patient.last_name} scheduled for {self.date.strftime('%B %d, %Y')} "
+                            f"at {self.start_time.strftime('%I:%M %p')}."
+                        )
+                        
+                        AppointmentReminder.objects.create(
+                            appointment_id=self.appointment_id,
+                            recipient=self.doctor,
+                            scheduled_time=reminder_time,
+                            message=doctor_message,
+                            status='pending'
+                        )
+                        
+        except ImportError:
+            # If notifications app isn't available, just continue
+            pass
     
     def __str__(self):
         return f"{self.patient} - {self.doctor} - {self.date} {self.start_time}"
@@ -74,7 +177,7 @@ class Appointment(models.Model):
         overlapping_appointments = Appointment.objects.filter(
             doctor=self.doctor,
             date=self.date,
-            status__in=[self.PENDING, self.CONFIRMED],
+            status__in=[self.SCHEDULED, self.CONFIRMED],
         ).exclude(pk=self.pk)
         
         for appointment in overlapping_appointments:
@@ -86,6 +189,9 @@ class Appointment(models.Model):
     
     def is_pending(self):
         return self.status == self.PENDING
+        
+    def is_scheduled(self):
+        return self.status == self.SCHEDULED
     
     def is_confirmed(self):
         return self.status == self.CONFIRMED

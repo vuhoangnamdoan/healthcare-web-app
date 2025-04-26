@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from rest_framework.authentication import SessionAuthentication
 
 from .models import User, DoctorProfile, PatientProfile
 from .serializers import (
@@ -13,6 +16,13 @@ from .serializers import (
     PatientProfileUpdateSerializer, DoctorProfileUpdateSerializer
 )
 from .permissions import IsAdmin, IsPatient, IsDoctor, IsSelfOrAdmin
+
+
+# Custom session authentication class that doesn't enforce CSRF
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    def enforce_csrf(self, request):
+        # Do not enforce CSRF checks for this authentication
+        return
 
 
 class RegisterView(generics.CreateAPIView):
@@ -25,12 +35,14 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = UserRegistrationSerializer
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class LoginView(APIView):
     """
     View for user login.
     Returns JWT tokens for authentication.
     """
     permission_classes = [permissions.AllowAny]
+    authentication_classes = [CsrfExemptSessionAuthentication]
     
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -64,16 +76,17 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
-class ChangePasswordView(generics.UpdateAPIView):
+class ChangePasswordView(APIView):
     """
     View for changing user password.
+    Accepts POST requests for password changes.
     """
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = ChangePasswordSerializer
     
-    def update(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         user = request.user
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         
         # Check old password
@@ -87,11 +100,25 @@ class ChangePasswordView(generics.UpdateAPIView):
         user.set_password(serializer.validated_data.get('new_password'))
         user.save()
         
-        # Return success response
-        return Response(
-            {'detail': 'Password changed successfully.'},
-            status=status.HTTP_200_OK
-        )
+        # Update session with new password to prevent logout
+        login(request, user)
+        
+        # Generate new JWT tokens
+        refresh = RefreshToken.for_user(user)
+        
+        # Return success response with new tokens
+        return Response({
+            'detail': 'Password changed successfully.',
+            'refresh': str(refresh),
+            'access': str(refresh.access_token)
+        }, status=status.HTTP_200_OK)
+        
+    # Keep PUT/PATCH support for backward compatibility
+    def put(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+        
+    def patch(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
 
 
 class DoctorRegistrationView(generics.CreateAPIView):
