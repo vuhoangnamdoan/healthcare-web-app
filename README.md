@@ -19,3 +19,18 @@ This project follows the GitFlow branching model:
 5. After review, merge the feature into `develop`
 
 When ready for release, a release branch will be created from `develop` and eventually merged into both `master` and back into `develop`.
+
+┌─────────────────────────────────────────────────┐
+│                Kubernetes Cluster               │
+│                                                 │
+│  ┌──────────┐    ┌─────────┐    ┌─────────────┐ │
+│  │ Frontend │    │ Backend │    │  Database   │ │
+│  │ Service  │━━━━│ Service │━━━━│ StatefulSet │ │
+│  │(React.js)│    │(Django) │    │(PostgreSQL) │ │
+│  └──────────┘    └─────────┘    └─────────────┘ │
+│                                                 │
+│  ┌─────────────┐  ┌──────────┐  ┌───────────┐   │
+│  │  Ingress    │  │ Secrets  │  │   HPA     │   │
+│  │ Controller  │  │ Manager  │  │           │   │
+│  └─────────────┘  └──────────┘  └───────────┘   │
+└─────────────────────────────────────────────────┘
