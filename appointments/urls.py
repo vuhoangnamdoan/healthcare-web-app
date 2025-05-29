@@ -1,22 +1,27 @@
 from django.urls import path
-from rest_framework.routers import DefaultRouter
 from . import views
 
 app_name = 'appointments'
 
-router = DefaultRouter()
-# These will be added when we implement the views
-# router.register(r'appointments', views.AppointmentViewSet)
-# router.register(r'availability', views.AvailabilityViewSet)
-# router.register(r'medical-records', views.MedicalRecordViewSet)
-
 urlpatterns = [
-    path('book/', views.BookAppointmentView.as_view(), name='book'),
-    path('cancel/<int:pk>/', views.CancelAppointmentView.as_view(), name='cancel'),
-    path('confirm/<int:pk>/', views.ConfirmAppointmentView.as_view(), name='confirm'),
-    path('complete/<int:pk>/', views.CompleteAppointmentView.as_view(), name='complete'),
-    path('availability/doctor/<int:doctor_id>/', views.DoctorAvailabilityView.as_view(), name='doctor-availability'),
-    path('medical-record/<int:appointment_id>/', views.MedicalRecordView.as_view(), name='medical-record'),
+    # Doctor appointment slot management
+    path('slots/', views.AppointmentListCreateView.as_view(), name='appointment-list-create'),
+    path('slots/<uuid:appointment_id>/', views.AppointmentDetailView.as_view(), name='appointment-detail'),
+    path('my-schedule/', views.DoctorScheduleView.as_view(), name='doctor-schedule'),
+    
+    # Patient appointment view
+    path('available/', views.AvailableAppointmentListView.as_view(), name='available-appointments'),
+    path('available/<uuid:appointment_id>/', views.AvailableAppointmentDetailView.as_view(), name='available-appointment-detail'),
+    
+    # Booking management
+    path('bookings/', views.BookingListCreateView.as_view(), name='booking-list-create'),
+    path('bookings/<uuid:booking_id>/', views.BookingDetailView.as_view(), name='booking-detail'),
+    path('bookings/<uuid:booking_id>/cancel/', views.BookingCancelView.as_view(), name='booking-cancel'),
+    
+    # Role-based views
+    path('my-appointments/', views.MyAppointmentsView.as_view(), name='my-appointments'),
+    path('my-bookings/', views.MyBookingsView.as_view(), name='my-bookings'),
+    
+    # Doctor availability management
+    path('availability/', views.DoctorAvailabilityView.as_view(), name='doctor-availability'),
 ]
-
-urlpatterns += router.urls

@@ -1,39 +1,37 @@
 version: '3.8'
 
 services:
-  web:
-    build:
-      context: .
-      target: development
-    volumes:
-      - .:/app
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
+  postgres:
+    image: postgres:15-alpine
     environment:
-      - DEBUG=True
-      - SECRET_KEY=dev_secret_key_replace_in_production
-      - DB_ENGINE=django.db.backends.postgresql
-      - DB_NAME=health_db
-      - DB_USER=health_user
-      - DB_PASSWORD=health_password
-      - DB_HOST=db
-      - DB_PORT=5432
-      - EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
-    restart: always
-
-  db:
-    image: postgres:14-alpine
+      POSTGRES_DB: healthdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
     volumes:
-      - postgres_data:/var/lib/postgresql/data/
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
     environment:
-      - POSTGRES_DB=health_db
-      - POSTGRES_USER=health_user
-      - POSTGRES_PASSWORD=health_password
-    restart: always
+      - DEBUG=True
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/healthdb
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
 
 volumes:
   postgres_data:

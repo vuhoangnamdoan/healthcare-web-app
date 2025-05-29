@@ -1,38 +1,34 @@
-FROM python:3.10-slim as base
+FROM python:3.11-slim
 
-# Setup environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on
-
-# Create and set working directory
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy project files
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install gunicorn==21.2.0  # ← Essential for production
+
+# Copy project
 COPY . .
 
-# Production specific configuration
-FROM base as production
+# Create static files directory
+RUN mkdir -p /app/staticfiles
 
-# Create non-root user for security
-RUN useradd -m -s /bin/bash app && \
-    chown -R app:app /app
-USER app
+# Copy and make entrypoint executable
+COPY docker-entrypoint.sh /app/
+RUN chmod +x /app/docker-entrypoint.sh
 
-# Run gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "health_system.wsgi:application"]
+# # Create non-root user
+# RUN adduser --disabled-password --gecos '' appuser
+# RUN chown -R appuser:appuser /app
+# USER appuser
 
-# Development specific configuration
-FROM base as development
+EXPOSE 8000
 
-# Install development dependencies
-RUN pip install pytest-watch ipython django-debug-toolbar
-
-# Run Django development server
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "health_system.wsgi:application"] 

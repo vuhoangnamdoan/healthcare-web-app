@@ -1,23 +1,26 @@
 from django.urls import path
-from rest_framework.routers import DefaultRouter
-from . import views
+from rest_framework_simplejwt.views import TokenRefreshView
 
-app_name = 'users'
-
-router = DefaultRouter()
-# These will be added when we implement the views
-# router.register(r'patients', views.PatientViewSet)
-# router.register(r'doctors', views.DoctorViewSet)
+from .views import (
+    PatientRegisterView, LoginView, MyProfileView, UpdateProfileView,
+    ChangePasswordView, LogoutView, DoctorListView
+)
 
 urlpatterns = [
-    # Basic auth endpoints
-    path('register/', views.RegisterView.as_view(), name='register'),
-    path('login/', views.LoginView.as_view(), name='login'),
-    path('logout/', views.LogoutView.as_view(), name='logout'),
-    path('profile/', views.UserProfileView.as_view(), name='profile'),
+    # Authentication endpoints
+    path('register/', PatientRegisterView.as_view(), name='patient-register'),
+    path('login/', LoginView.as_view(), name='login'),
+    path('logout/', LogoutView.as_view(), name='logout'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
-    # Admin-only endpoints
-    path('admin/doctors/register/', views.DoctorRegistrationView.as_view(), name='doctor-register'),
-]
+    # Profile management endpoints
+    path('profile/', MyProfileView.as_view(), name='my-profile'),
+    path('profile/update/', UpdateProfileView.as_view(), name='update-profile'),
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
+    
+    
+    # Doctor discovery for patients
+    path('doctors/', DoctorListView.as_view(), name='doctor-list'),
 
-urlpatterns += router.urls
+    # path('doctors/specialities/', DoctorSpecialitiesView.as_view(), name='doctor-specialities'),
+]

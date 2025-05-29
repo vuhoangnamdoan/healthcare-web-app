@@ -1,0 +1,33 @@
+# k8s/django-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: django-config
+data:
+  INITIAL_DOCTORS: |
+    [
+      {
+        "email": "dr.smith@hospital.com",
+        "first_name": "John",
+        "last_name": "Smith",
+        "speciality": "General",
+        "dob": "1980-01-15",
+        "experience": 10,
+        "working_day": "1,2,3,4,5",
+        "from_time": "09:00:00",
+        "to_time": "17:00:00",
+        "description": "Experienced general practitioner"
+      },
+      {
+        "email": "dr.johnson@hospital.com",
+        "first_name": "Sarah",
+        "last_name": "Johnson",
+        "speciality": "Mental",
+        "dob": "1975-05-20",
+        "experience": 15,
+        "working_day": "1,2,3,4,5",
+        "from_time": "10:00:00",
+        "to_time": "18:00:00",
+        "description": "Mental health specialist"
+      }
+    ]
