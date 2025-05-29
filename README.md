@@ -482,16 +482,14 @@ npm start
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open Pull Request
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## 📞 Support
 
 For support and questions:
 - **Documentation**: Refer to this README
 - **Issues**: GitHub Issues for bug reports
 - **Discussions**: GitHub Discussions for questions
+- **Email**: vuhoangnamdoan1605@gmail.com
+- **LinkedIn**: https://www.linkedin.com/in/vuhoangnamdoan/
 
 ## 🚀 Access Information
 
@@ -507,9 +505,5 @@ For support and questions:
 
 ### Default Test Credentials
 - **Admin**: admin@hospital.com / admin123pass!
-- **Doctor 1**: dr.smith@hospital.com / test123pass!
-- **Doctor 2**: dr.johnson@hospital.com / test123pass!
 
 ---
-
-*Built with ❤️ using Django REST Framework and React*
