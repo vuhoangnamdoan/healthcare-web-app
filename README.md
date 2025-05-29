@@ -1,4 +1,4 @@
-# Health Appointment System
+# Healthcare Appointment Booking System
 
 A modern healthcare appointment booking system built with Django REST API and React.
 
@@ -15,8 +15,6 @@ This project follows the GitFlow branching model:
 - `master`: Production-ready code
 - `develop`: Integration branch for features
 - `feature/*`: Individual feature branches (e.g., feature/user-authentication)
-- `release/*`: Preparing for a new production release
-- `hotfix/*`: Quick fixes for the production version
 
 ## Quick Start
 
@@ -78,13 +76,6 @@ kubectl apply -f k8s/ingress.yaml
 - **Admin**: admin@hospital.com / admin123pass!
 - **Doctor 1**: dr.smith@hospital.com / test123pass!
 - **Doctor 2**: dr.johnson@hospital.com / test123pass!
-
-## API Endpoints
-- `POST /api/auth/register/` - Patient registration
-- `POST /api/auth/token/` - Login
-- `GET /api/users/doctors/` - List doctors
-- `GET /api/appointments/` - List appointments
-- `POST /api/appointments/book/` - Book appointment
 
 ## Access After Deployment
 - Frontend: http://healthcare.local (or your domain)
