@@ -499,9 +499,9 @@ For support and questions:
 - **Admin Panel**: http://localhost:8000/admin
 
 ### Production Deployment
-- **Frontend**: http://healthcare.local (or your domain)
-- **Admin**: http://healthcare.local/admin
-- **API**: http://healthcare.local/api
+- **Frontend**: http://localhost (or your domain)
+- **Admin**: http://localhost/admin
+- **API**: http://localhost/api
 
 ### Default Test Credentials
 - **Admin**: admin@hospital.com / admin123pass!
