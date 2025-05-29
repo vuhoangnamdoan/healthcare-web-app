@@ -14,16 +14,14 @@ spec:
     spec:
       containers:
       - name: django
-        image: your-registry/healthcare-backend:latest
+        image: localhost:32000/healthcare-backend:latest
         ports:
         - containerPort: 8000
         env:
         - name: DEBUG
-          value: "False"
+          value: "True"
         - name: ALLOWED_HOSTS
           value: "*"
-        - name: DJANGO_SETTINGS_MODULE
-          value: "health_system.settings_production"
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -37,21 +35,6 @@ spec:
           value: "postgres"
         - name: POSTGRES_PORT
           value: "5432"
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: django-secrets
-              key: DATABASE_URL
-        - name: SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: django-secrets
-              key: SECRET_KEY
-        - name: DOCTOR_DEFAULT_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: django-secrets
-              key: DOCTOR_DEFAULT_PASSWORD
         - name: DJANGO_SUPERUSER_EMAIL
           valueFrom:
             secretKeyRef:
@@ -62,21 +45,6 @@ spec:
             secretKeyRef:
               name: django-secrets
               key: DJANGO_SUPERUSER_PASSWORD
-        envFrom:
-        - configMapRef:
-            name: django-config
-        readinessProbe:
-          httpGet:
-            path: /admin/
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /admin/
-            port: 8000
-          initialDelaySeconds: 60
-          periodSeconds: 30
 ---
 apiVersion: v1
 kind: Service

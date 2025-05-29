@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '/api'  // ← Production: uses relative URLs with Kubernetes Ingress
-  : 'http://localhost:8000/api';  // ← Development: uses full URL
+const API_BASE_URL = '/api';  // ← Development: uses full URL
 
 // Create axios instance
 const apiClient = axios.create({

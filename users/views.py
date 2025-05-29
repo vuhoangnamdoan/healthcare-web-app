@@ -20,7 +20,7 @@ class CsrfExemptSessionAuthentication(SessionAuthentication):
     def enforce_csrf(self, request):
         return
 
-
+@method_decorator(csrf_exempt, name='dispatch')
 class PatientRegisterView(generics.CreateAPIView):
     """
     View for patient self-registration.
@@ -29,6 +29,7 @@ class PatientRegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = [permissions.AllowAny]
     serializer_class = PatientRegistrationSerializer
+    authentication_classes = []
 
     def post(self, request, *args, **kwargs):
         print("🔍 DEBUG: Received registration data:", request.data)  # Add this line
