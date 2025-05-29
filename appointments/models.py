@@ -1,248 +1,193 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-from django_cryptography.fields import encrypt
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from datetime import datetime, timedelta
 import uuid
 
 
 class Appointment(models.Model):
-    """Model for medical appointments between patients and doctors."""
+    """Model for medical appointment slots created by doctors."""
     
-    # Status choices for appointment
-    PENDING = 'pending'
-    SCHEDULED = 'scheduled'
-    CONFIRMED = 'confirmed'
-    CANCELLED = 'cancelled'
-    COMPLETED = 'completed'
-    NO_SHOW = 'no_show'
-    RESCHEDULED = 'rescheduled'
-    
-    STATUS_CHOICES = [
-        (PENDING, _('Pending')),
-        (SCHEDULED, _('Scheduled')),
-        (CONFIRMED, _('Confirmed')),
-        (CANCELLED, _('Cancelled')),
-        (COMPLETED, _('Completed')),
-        (NO_SHOW, _('No Show')),
-        (RESCHEDULED, _('Rescheduled')),
+    # Days of the week choices
+    DAYS_OF_WEEK = [
+        (1, 'Monday'),
+        (2, 'Tuesday'),
+        (3, 'Wednesday'),
+        (4, 'Thursday'),
+        (5, 'Friday'),
+        (6, 'Saturday'),
+        (7, 'Sunday'),
     ]
     
-    # Foreign keys will be imported at runtime to avoid circular imports
-    patient = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='patient_appointments')
-    doctor = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='doctor_appointments')
-    appointment_id = models.CharField(max_length=50, unique=True, editable=False)
-    
-    # Appointment schedule details
-    date = models.DateField()
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-    duration_minutes = models.PositiveIntegerField(default=30)
-    
-    # Appointment details with encryption for sensitive information
-    reason = encrypt(models.TextField())
-    notes = encrypt(models.TextField(blank=True))
-    
-    # Appointment status
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default=SCHEDULED)
-    
-    # Appointment metadata
+    appointment_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    doctor = models.ForeignKey('users.Doctor', on_delete=models.CASCADE, related_name='appointments')
+    week_day = models.IntegerField(choices=DAYS_OF_WEEK, help_text="Day of the week (1=Monday, 7=Sunday)")
+    start_time = models.TimeField(help_text="Start time of the appointment slot")
+    duration = models.IntegerField(default=60, help_text="Duration in minutes")
+    is_available = models.BooleanField(default=True, help_text="Whether this slot is available for booking")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    cancellation_reason = models.TextField(blank=True)
-    confirmation_timestamp = models.DateTimeField(null=True, blank=True)
     
     class Meta:
-        ordering = ['date', 'start_time']
-        indexes = [
-            models.Index(fields=['date', 'doctor']),
-            models.Index(fields=['date', 'patient']),
-            models.Index(fields=['status']),
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(week_day__gte=1) & models.Q(week_day__lte=7),
+                name='valid_week_day'
+            ),
+            models.UniqueConstraint(
+                fields=['doctor', 'week_day', 'start_time'],
+                name='unique_doctor_time_slot'
+            )
         ]
+        ordering = ['week_day', 'start_time']
     
-    def save(self, *args, **kwargs):
-        # Check if this is a new appointment or status is changed
-        is_new = not self.pk
-        
-        if is_new:
-            self.appointment_id = f"APT-{uuid.uuid4().hex[:8].upper()}"
-        else:
-            # Get the previous state from the database
-            try:
-                old_instance = Appointment.objects.get(pk=self.pk)
-                old_status = old_instance.status
-                status_changed = old_status != self.status
-                date_changed = old_instance.date != self.date
-            except Appointment.DoesNotExist:
-                status_changed = False
-                date_changed = False
-                
-        # Save the appointment first
-        super().save(*args, **kwargs)
-        
-        # Handle automated actions after save
-        if is_new or (status_changed or date_changed):
-            self._handle_reminders()
+    def __str__(self):
+        return f"Dr. {self.doctor.user.first_name} {self.doctor.user.last_name} - {self.get_week_day_display()} at {self.start_time}"
     
-    def _handle_reminders(self):
-        """
-        Handle reminder creation or cancellation based on appointment status
-        """
-        try:
-            from notifications.utils import cancel_reminder
-            from notifications.models import AppointmentReminder, NotificationTemplate, Notification
-            from datetime import datetime, timedelta
+    def get_end_time(self):
+        """Calculate end time based on start time and duration."""
+        if not self.start_time:
+            return None 
+        start_datetime = datetime.combine(datetime.today(), self.start_time)
+        end_datetime = start_datetime + timedelta(minutes=self.duration)
+        return end_datetime.time()
+    
+    def is_slot_available(self):
+        """Check if this appointment slot is available for booking."""
+        return self.is_available and not self.bookings.filter(is_canceled=False).exists()
+    
+    def mark_as_booked(self):
+        """Mark this appointment slot as unavailable."""
+        self.is_available = False
+        self.save(update_fields=['is_available', 'updated_at'])
+    
+    def mark_as_available(self):
+        """Mark this appointment slot as available."""
+        self.is_available = True
+        self.save(update_fields=['is_available', 'updated_at'])
+    
+    def clean(self):
+        """Validate appointment data."""
+        super().clean()
+        
+        # Validate that appointment is within doctor's working hours
+        if hasattr(self, 'doctor') and self.doctor:
+            working_days = [int(day.strip()) for day in self.doctor.working_day.split(',') if day.strip()]
+            if self.week_day not in working_days:
+                raise ValidationError(
+                    f"Doctor is not available on {self.get_week_day_display()}. "
+                    f"Working days: {self.doctor.get_working_days_display()}"
+                )
             
-            # If appointment is cancelled, remove any pending reminders
-            if self.status == self.CANCELLED:
-                cancel_reminder(self.appointment_id)
-                return
-                
-            # For scheduled and confirmed appointments, create reminders if needed
-            if self.status in [self.SCHEDULED, self.CONFIRMED]:
-                # Check if the appointment date is within the reminder window (e.g., next 7 days)
-                today = timezone.now().date()
-                days_until_appointment = (self.date - today).days
-                
-                if 0 <= days_until_appointment <= 7:
-                    # Check if a reminder already exists
-                    existing_reminder = AppointmentReminder.objects.filter(
-                        appointment_id=self.appointment_id,
-                        status='pending'
-                    ).exists()
-                    
-                    if not existing_reminder:
-                        # Create reminder messages
-                        try:
-                            template = NotificationTemplate.objects.get(template_type='appointment_reminder')
-                            patient_message = template.content.format(
-                                patient_name=f"{self.patient.first_name} {self.patient.last_name}",
-                                doctor_name=f"{self.doctor.first_name} {self.doctor.last_name}",
-                                date=self.date.strftime("%B %d, %Y"),
-                                time=self.start_time.strftime("%I:%M %p"),
-                                location="Online",
-                                duration=f"{self.duration_minutes} minutes"
-                            )
-                        except (NotificationTemplate.DoesNotExist, KeyError):
-                            patient_message = (
-                                f"Reminder: You have an appointment with Dr. {self.doctor.last_name} "
-                                f"on {self.date.strftime('%B %d, %Y')} at {self.start_time.strftime('%I:%M %p')}. "
-                                f"Please be on time."
-                            )
-                            
-                        # Create reminder time for 8 AM on appointment day
-                        reminder_time = datetime.combine(
-                            self.date, 
-                            datetime.strptime("08:00", "%H:%M").time()
-                        )
-                        reminder_time = timezone.make_aware(reminder_time)
-                        
-                        # Create reminder for patient
-                        AppointmentReminder.objects.create(
-                            appointment_id=self.appointment_id,
-                            recipient=self.patient,
-                            scheduled_time=reminder_time,
-                            message=patient_message,
-                            status='pending'
-                        )
-                        
-                        # Create reminder for doctor
-                        doctor_message = (
-                            f"Reminder: You have an appointment with {self.patient.first_name} "
-                            f"{self.patient.last_name} scheduled for {self.date.strftime('%B %d, %Y')} "
-                            f"at {self.start_time.strftime('%I:%M %p')}."
-                        )
-                        
-                        AppointmentReminder.objects.create(
-                            appointment_id=self.appointment_id,
-                            recipient=self.doctor,
-                            scheduled_time=reminder_time,
-                            message=doctor_message,
-                            status='pending'
-                        )
-                        
-        except ImportError:
-            # If notifications app isn't available, just continue
-            pass
-    
-    def __str__(self):
-        return f"{self.patient} - {self.doctor} - {self.date} {self.start_time}"
-    
-    def clean(self):
-        """Validate appointment time range and availability."""
-        if self.start_time >= self.end_time:
-            raise ValidationError(_("End time must be after start time"))
-        
-        # Check for overlapping appointments
-        overlapping_appointments = Appointment.objects.filter(
-            doctor=self.doctor,
-            date=self.date,
-            status__in=[self.SCHEDULED, self.CONFIRMED],
-        ).exclude(pk=self.pk)
-        
-        for appointment in overlapping_appointments:
-            if (
-                (self.start_time <= appointment.start_time < self.end_time) or
-                (appointment.start_time <= self.start_time < appointment.end_time)
-            ):
-                raise ValidationError(_("This time slot conflicts with another appointment"))
-    
-    def is_pending(self):
-        return self.status == self.PENDING
-        
-    def is_scheduled(self):
-        return self.status == self.SCHEDULED
-    
-    def is_confirmed(self):
-        return self.status == self.CONFIRMED
-    
-    def is_cancelled(self):
-        return self.status == self.CANCELLED
-    
-    def is_completed(self):
-        return self.status == self.COMPLETED
-    
-    def is_no_show(self):
-        return self.status == self.NO_SHOW
-    
-    def is_rescheduled(self):
-        return self.status == self.RESCHEDULED
+            if not (self.doctor.from_time <= self.start_time < self.doctor.to_time):
+                raise ValidationError(
+                    f"Appointment time must be within doctor's working hours "
+                    f"({self.doctor.from_time} - {self.doctor.to_time})"
+                )
 
 
-class AvailabilitySlot(models.Model):
-    """Model to track doctor availability for appointments."""
+class Booking(models.Model):
+    """Model for patient bookings of appointment slots."""
     
-    doctor_id = models.CharField(max_length=50)
-    date = models.DateField()
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-    is_available = models.BooleanField(default=True)
-    week_day = models.PositiveSmallIntegerField(choices=[
-        (0, _('Monday')),
-        (1, _('Tuesday')),
-        (2, _('Wednesday')),
-        (3, _('Thursday')),
-        (4, _('Friday')),
-        (5, _('Saturday')),
-        (6, _('Sunday')),
-    ], null=True, blank=True)
+    booking_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name='bookings')
+    patient = models.ForeignKey('users.Patient', on_delete=models.CASCADE, related_name='bookings')
+    reason = models.TextField(blank=True, null=True, help_text="Reason for the appointment")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_canceled = models.BooleanField(default=False)
+    canceled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.TextField(blank=True, null=True)
     
     class Meta:
-        ordering = ['date', 'start_time']
-        unique_together = ['doctor_id', 'date', 'start_time', 'end_time']
-        indexes = [
-            models.Index(fields=['doctor_id', 'date']),
-            models.Index(fields=['is_available']),
-            models.Index(fields=['week_day']),
+        constraints = [
+            models.UniqueConstraint(
+                fields=['appointment'],
+                condition=models.Q(is_canceled=False),
+                name='unique_active_booking_per_appointment'
+            ),
+            models.UniqueConstraint(
+                fields=['appointment', 'patient'],
+                condition=models.Q(is_canceled=False),
+                name='unique_patient_appointment'
+            )
         ]
+        ordering = ['-created_at']
     
     def __str__(self):
-        return f"Doctor {self.doctor_id} - {self.date} {self.start_time}-{self.end_time}"
+        status = "Canceled" if self.is_canceled else "Active"
+        return (f"Booking {self.booking_id} - "
+                f"Dr. {self.appointment.doctor.user.first_name} {self.appointment.doctor.user.last_name} - "
+                f"{self.appointment.get_week_day_display()} at {self.appointment.start_time} - "
+                f"Patient: {self.patient.user.first_name} {self.patient.user.last_name} - "
+                f"Status: {status}")
     
     def clean(self):
-        if self.start_time >= self.end_time:
-            raise ValidationError(_("End time must be after start time"))
-    
+        super().clean()
+        if not self.pk:
+            existing_booking = Booking.objects.filter(
+                appointment=self.appointment,
+                appointment__week_day=self.appointment.week_day,
+                appointment__start_time=self.appointment.start_time,
+                is_canceled=False
+            ).first()
+            
+            if existing_booking:
+                raise ValidationError(
+                    f"This appointment slot is already booked by {existing_booking.patient.user.get_full_name()}."
+                )
+
     def save(self, *args, **kwargs):
-        self.clean()
+        is_new = self.pk is None
+        was_canceled = False
+        if not is_new and self.pk:
+            try:
+                old_booking = Booking.objects.get(pk=self.pk)
+                was_canceled = not old_booking.is_canceled and self.is_canceled
+            except Booking.DoesNotExist:
+                was_canceled = False
+        if self.is_canceled and not self.canceled_at:
+            self.canceled_at = timezone.now()
+        elif not self.is_canceled:
+            self.canceled_at = None
+        
         super().save(*args, **kwargs)
+
+        self.update_appointment_availability()
+    
+    def update_appointment_availability(self):
+        active_bookings = self.appointment.bookings.filter(is_canceled=False).count()
+
+        if active_bookings > 0:
+            if self.appointment.is_available:
+                self.appointment.mark_as_booked()
+        else:
+            if not self.appointment.is_available:
+                self.appointment.mark_as_available()
+    
+    def cancel_booking(self, reason=None):
+        self.is_canceled = True
+        self.canceled_at = timezone.now()
+        if reason:
+            self.cancellation_reason = reason
+        self.save()
+    
+    def clean(self):
+        super().clean()
+        
+        if not self.appointment.is_slot_available() and not self.pk:
+            raise ValidationError("This appointment slot is no longer available.")
+
+        if not self.pk:
+            conflicting_bookings = Booking.objects.filter(
+                patient=self.patient,
+                appointment__week_day=self.appointment.week_day,
+                appointment__start_time=self.appointment.start_time,
+                is_canceled=False
+            ).exclude(pk=self.pk)
+            
+            if conflicting_bookings.exists():
+                raise ValidationError(
+                    "You already have an appointment at this time."
+                )
