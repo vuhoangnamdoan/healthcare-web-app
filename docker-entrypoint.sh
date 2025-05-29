@@ -1,16 +1,11 @@
 #!/bin/bash
-# docker-entrypoint.sh
-
 set -e
 
 echo "Running database migrations..."
-python manage.py migrate --settings=health_system.settings_production
+python manage.py migrate
 
-echo "Creating initial doctors..."
-python manage.py create_doctors --settings=health_system.settings_production
-
-echo "Collecting static files..."
-python manage.py collectstatic --noinput --settings=health_system.settings_production
+echo "Collecting static files (including admin)..."
+python manage.py collectstatic --noinput --clear
 
 echo "Creating superuser if needed..."
 if [ "$DJANGO_SUPERUSER_EMAIL" ]; then
@@ -25,5 +20,5 @@ else:
 "
 fi
 
-echo "🚀 Starting Django server..."
+echo "🚀 Starting Django development server..."
 exec "$@"

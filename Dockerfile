@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install gunicorn==21.2.0  # ← Essential for production
 
 # Copy project
 COPY . .
@@ -23,12 +22,8 @@ RUN mkdir -p /app/staticfiles
 COPY docker-entrypoint.sh /app/
 RUN chmod +x /app/docker-entrypoint.sh
 
-# # Create non-root user
-# RUN adduser --disabled-password --gecos '' appuser
-# RUN chown -R appuser:appuser /app
-# USER appuser
-
 EXPOSE 8000
 
 ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "health_system.wsgi:application"] 
+# Use Django development server
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

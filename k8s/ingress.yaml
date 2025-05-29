@@ -3,21 +3,49 @@ kind: Ingress
 metadata:
   name: healthcare-ingress
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   rules:
-  - host: healthcare.local
-    http:
+  - http:
       paths:
-      - path: /api
-        pathType: Prefix
+      - path: /static/admin/(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: django-backend
+            port:
+              number: 8000
+      # Django static files (general)
+      - path: /static/rest_framework/(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: django-backend
+            port:
+              number: 8000
+      - path: /static/(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: react-frontend
+            port:
+              number: 80
+      - path: /api/(.*)
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: django-backend
+            port:
+              number: 8000
+      - path: /admin/(.*)
+        pathType: ImplementationSpecific
         backend:
           service:
             name: django-backend
             port:
               number: 8000
       - path: /admin
-        pathType: Prefix
+        pathType: Exact
         backend:
           service:
             name: django-backend

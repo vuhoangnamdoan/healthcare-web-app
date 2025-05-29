@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 Django settings for health_system project.
 """
+import os
+import uuid
 from pathlib import Path
 from datetime import timedelta
 
@@ -76,13 +78,37 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'health_system.wsgi.application'
 
-# Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Database configuration for both development and Kubernetes
+if os.getenv('POSTGRES_HOST'):
+    # Kubernetes/Docker environment
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'healthdb'),
+            'USER': os.getenv('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
+            'HOST': os.getenv('POSTGRES_HOST', 'postgres'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        }
     }
-}
+    # Kubernetes settings
+    ALLOWED_HOSTS = ['*']
+    STATIC_ROOT = '/app/staticfiles'
+    STATIC_URL = '/static/'  # ✅ Add this
+else:
+    # Local development with SQLite
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+    ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+    STATIC_ROOT = BASE_DIR / 'staticfiles'
+    STATIC_URL = '/static/'  # ✅ Add this
+
+# Static files configuration
+STATIC_ROOT = '/app/staticfiles' if os.getenv('POSTGRES_HOST') else BASE_DIR / 'staticfiles'
 
 # Custom User Model - CRITICAL FOR YOUR SYSTEM
 AUTH_USER_MODEL = 'users.User'
@@ -157,6 +183,8 @@ SIMPLE_JWT = {
 
 # CORS Configuration - FOR FRONTEND INTEGRATION
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost",  # ✅ Add this for Kubernetes ingress
+    "http://127.0.0.1",  # ✅ Add this too
     "http://localhost:3000",  # React development server
     "http://127.0.0.1:3000",
     "http://localhost:8080",  # Vue development server
@@ -164,6 +192,31 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
+# ✅ CSRF settings for API
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+CSRF_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
+CSRF_USE_SESSIONS = False
 
 # Healthcare System Specific Settings
 HEALTHCARE_SETTINGS = {

@@ -120,7 +120,16 @@ const AppointmentBrowser = () => {
         setError('');
 
         try {
-
+            const bookingData = {
+                appointment: selectedSlot.appointment_id,
+                reason: reason || 'Regular consultation'
+            };
+            
+            console.log('🔍 Making booking request with data:', bookingData);
+        
+            const response = await appointmentAPI.createBooking(bookingData);
+            
+            console.log('✅ Booking response:', response.data);
             setSuccess(`Appointment booked successfully!`);
             setShowBookingModal(false);
             setSelectedSlot(null);

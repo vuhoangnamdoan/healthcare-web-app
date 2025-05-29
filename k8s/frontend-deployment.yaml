@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: react
-        image: your-registry/healthcare-frontend:latest
+        image: localhost:32000/healthcare-frontend:latest
         ports:
         - containerPort: 80
 

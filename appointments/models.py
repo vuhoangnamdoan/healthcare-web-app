@@ -125,6 +125,9 @@ class Booking(models.Model):
     
     def clean(self):
         super().clean()
+        if not self.appointment.is_slot_available() and not self.pk:
+            raise ValidationError("This appointment slot is no longer available.")
+        
         if not self.pk:
             existing_booking = Booking.objects.filter(
                 appointment=self.appointment,
@@ -172,22 +175,3 @@ class Booking(models.Model):
         if reason:
             self.cancellation_reason = reason
         self.save()
-    
-    def clean(self):
-        super().clean()
-        
-        if not self.appointment.is_slot_available() and not self.pk:
-            raise ValidationError("This appointment slot is no longer available.")
-
-        if not self.pk:
-            conflicting_bookings = Booking.objects.filter(
-                patient=self.patient,
-                appointment__week_day=self.appointment.week_day,
-                appointment__start_time=self.appointment.start_time,
-                is_canceled=False
-            ).exclude(pk=self.pk)
-            
-            if conflicting_bookings.exists():
-                raise ValidationError(
-                    "You already have an appointment at this time."
-                )

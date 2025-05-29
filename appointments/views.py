@@ -11,6 +11,7 @@ from .serializers import (
     AvailableAppointmentSerializer, DoctorAvailabilitySerializer
 )
 from users.permissions import IsPatient, IsDoctor, IsSelf
+from users.models import Patient
 
 
 # Doctor appointment slot management
@@ -72,17 +73,36 @@ class BookingListCreateView(generics.ListCreateAPIView):
     def create(self, request, *args, **kwargs):
         try:
             # Get the patient from the current user
-            patient = request.user.patient
-        except Exception as e:
+            patient = Patient.objects.get(user=request.user)
+            
+            # Add patient to the data
+            data = request.data.copy()
+            data['patient'] = patient.user.user_id  # ✅ Use the Patient's User ID
+            
+            print(f"🔍 DEBUG: Creating booking with data: {data}")  # Debug log
+            
+            serializer = self.get_serializer(data=data)
+            serializer.is_valid(raise_exception=True)
+            booking = serializer.save()
+            
+            print(f"✅ DEBUG: Booking created: {booking.booking_id}")  # Debug log
+            
             return Response(
-                {"detail": "Patient profile not found."}, 
+                BookingSerializer(booking).data,
+                status=status.HTTP_201_CREATED
+            )
+        except Patient.DoesNotExist:
+            print(f"❌ DEBUG: Patient not found for user: {request.user.user_id}")  # Debug log
+            return Response(
+                {'error': 'Patient profile not found'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        return super().create(request, *args, **kwargs)
-    
-    def perform_create(self, serializer):
-        booking = serializer.save()
+        except Exception as e:
+            print(f"❌ DEBUG: Booking creation error: {str(e)}")  # Debug log
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     def get_queryset(self):
         return Booking.objects.filter(patient__user=self.request.user)
