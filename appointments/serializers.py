@@ -1,108 +1,167 @@
 from rest_framework import serializers
-from .models import Appointment, AvailabilitySlot
-from users.serializers import UserSerializer
-from users.models import User, DoctorProfile
+from django.core.exceptions import ValidationError as DjangoValidationError
+from .models import Appointment, Booking
+from users.serializers import UserSerializer, DoctorProfileSerializer, PatientProfileSerializer
+from users.models import Doctor, Patient
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
-    """
-    Serializer for appointment creation and updates.
-    """
-    patient = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role='patient'),
-        required=False  # Not required as it may be set from the current user
-    )
-    doctor = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role='doctor'),
-        required=False  # We'll make this optional when doctor_id is provided
-    )
-    doctor_id = serializers.CharField(write_only=True, required=False)
+    """Serializer for appointment slots created by doctors."""
+    doctor_info = DoctorProfileSerializer(source='doctor', read_only=True)
+    week_day_display = serializers.CharField(source='get_week_day_display', read_only=True)
+    end_time = serializers.SerializerMethodField()
+    slot_status = serializers.SerializerMethodField()
     
     class Meta:
         model = Appointment
         fields = [
-            'appointment_id', 'patient', 'doctor', 'doctor_id',
-            'date', 'start_time', 'end_time', 'duration_minutes',
-            'reason', 'notes', 'status', 'created_at',
-            'updated_at', 'cancellation_reason', 'confirmation_timestamp'
+            'appointment_id', 'doctor', 'doctor_info', 'week_day', 'week_day_display',
+            'start_time', 'end_time', 'duration', 'is_available', 'slot_status',
+            'created_at', 'updated_at'
         ]
         read_only_fields = ['appointment_id', 'created_at', 'updated_at']
     
+    def get_end_time(self, obj):
+        return obj.get_end_time()
+    
+    def get_slot_status(self, obj):
+        return "Available" if obj.is_slot_available() else "Booked"
+    
     def validate(self, data):
-        # If doctor_id is provided, find the doctor user
-        if 'doctor_id' in data and not 'doctor' in data:
-            try:
-                doctor_profile = DoctorProfile.objects.get(doctor_id=data['doctor_id'])
-                data['doctor'] = doctor_profile.user
-                # Remove doctor_id from data as it's not a model field
-                data.pop('doctor_id')
-            except DoctorProfile.DoesNotExist:
-                raise serializers.ValidationError(
-                    {"doctor_id": f"Doctor with ID {data['doctor_id']} does not exist."}
-                )
-        
-        # Check if either doctor or doctor_id is provided
-        if 'doctor' not in data:
-            raise serializers.ValidationError(
-                {"doctor": "Either doctor (User ID) or doctor_id (e.g., DOC-XXXXXXXX) must be provided."}
-            )
-            
-        # Check if doctor is available at the specified time
-        if 'date' in data and 'start_time' in data and 'end_time' in data and 'doctor' in data:
-            try:
-                doctor_profile = DoctorProfile.objects.get(user=data['doctor'])
-                doctor_id = doctor_profile.doctor_id
-                
-                if not AvailabilitySlot.objects.filter(
-                    doctor_id=doctor_id,
-                    date=data['date'],
-                    start_time__lte=data['start_time'],
-                    end_time__gte=data['end_time'],
-                    is_available=True
-                ).exists():
-                    raise serializers.ValidationError(
-                        {"doctor": "Doctor is not available during this time slot."}
-                    )
-            except DoctorProfile.DoesNotExist:
-                raise serializers.ValidationError(
-                    {"doctor": "The selected user does not have a doctor profile."}
-                )
-        
-        # Check if start time is before end time
-        if 'start_time' in data and 'end_time' in data:
-            if data['start_time'] >= data['end_time']:
-                raise serializers.ValidationError(
-                    {"end_time": "End time must be after start time."}
-                )
-        
+        appointment = Appointment(**data)
+        try:
+            appointment.clean()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
         return data
 
 
-class AppointmentDetailSerializer(AppointmentSerializer):
-    """
-    Serializer for detailed appointment view.
-    Includes user details instead of just IDs.
-    """
-    patient = UserSerializer(read_only=True)
-    doctor = UserSerializer(read_only=True)
-
-
-class AvailabilitySlotSerializer(serializers.ModelSerializer):
-    """
-    Serializer for doctor availability slots
-    """
+class AppointmentCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating appointment slots (doctors only)."""
     class Meta:
-        model = AvailabilitySlot
+        model = Appointment
         fields = [
-            'doctor_id', 'date', 'start_time', 'end_time', 
-            'is_available', 'week_day'
+            'doctor', 'week_day', 'start_time', 'duration', 'is_available'
         ]
     
     def validate(self, data):
-        # Check if start time is before end time
-        if data['start_time'] >= data['end_time']:
+        """Validate appointment creation data."""
+        appointment = Appointment(**data)
+        try:
+            appointment.clean()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        return data
+
+
+class BookingSerializer(serializers.ModelSerializer):
+    """Serializer for patient bookings of appointment slots."""
+    appointment_info = AppointmentSerializer(source='appointment', read_only=True)
+    patient_info = PatientProfileSerializer(source='patient', read_only=True)
+    doctor_info = serializers.SerializerMethodField()
+    booking_status = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Booking
+        fields = [
+            'booking_id', 'appointment', 'appointment_info', 'patient', 'patient_info',
+            'doctor_info', 'reason', 'booking_status', 'is_canceled', 'canceled_at',
+            'cancellation_reason', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'booking_id', 'canceled_at', 'created_at', 'updated_at'
+        ]
+    
+    def get_doctor_info(self, obj):
+        return DoctorProfileSerializer(obj.appointment.doctor).data
+    
+    def get_booking_status(self, obj):
+        if obj.is_canceled:
+            return f"Canceled on {obj.canceled_at.strftime('%Y-%m-%d %H:%M')}" if obj.canceled_at else "Canceled"
+        return "Active"
+    
+    def validate(self, data):
+        booking = Booking(**data)
+        try:
+            booking.clean()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        return data
+
+
+class BookingCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating new bookings (patients only)."""
+    class Meta:
+        model = Booking
+        fields = ['appointment', 'patient', 'reason']
+    
+    def validate_appointment(self, value):
+        if not value.is_slot_available():
             raise serializers.ValidationError(
-                {"end_time": "End time must be after start time."}
+                "This appointment slot is no longer available."
             )
-        
+        return value
+    
+    def validate_patient(self, value):
+        if not value:
+            raise serializers.ValidationError("Patient is required.")
+        return value
+
+    def validate(self, data):
+        booking = Booking(**data)
+        try:
+            booking.clean()
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.message_dict)
+        return data
+
+
+class BookingCancelSerializer(serializers.Serializer):
+    """Serializer for canceling bookings."""
+    cancellation_reason = serializers.CharField(max_length=500, required=False, 
+        help_text="Optional reason for cancellation"
+    )
+    
+    def update(self, instance, validated_data):
+        reason = validated_data.get('cancellation_reason')
+        instance.cancel_booking(reason=reason)
+        return instance
+
+
+class AvailableAppointmentSerializer(serializers.ModelSerializer):
+    """Serializer for listing available appointment slots for booking."""
+    doctor_info = serializers.SerializerMethodField()
+    week_day_display = serializers.CharField(source='get_week_day_display', read_only=True)
+    end_time = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Appointment
+        fields = [
+            'appointment_id', 'doctor_info', 'week_day', 'week_day_display',
+            'start_time', 'end_time', 'duration'
+        ]
+    
+    def get_doctor_info(self, obj):
+        return {
+            'doctor_id': obj.doctor.user.user_id,
+            'name': f"Dr. {obj.doctor.user.get_full_name()}",
+            'speciality': obj.doctor.speciality,
+            'experience': obj.doctor.experience
+        }
+    
+    def get_end_time(self, obj):
+        return obj.get_end_time()
+
+
+class DoctorAvailabilitySerializer(serializers.Serializer):
+    """Serializer for managing doctor availability."""
+    week_day = serializers.IntegerField(min_value=1, max_value=7)
+    start_time = serializers.TimeField()
+    duration = serializers.IntegerField(min_value=15, max_value=120)
+    
+    def validate(self, data):
+        if data['duration'] % 15 != 0:
+            raise serializers.ValidationError(
+                "Duration must be in 15-minute intervals."
+            )
         return data

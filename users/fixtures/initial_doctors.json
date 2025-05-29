@@ -1,0 +1,29 @@
+[
+  {
+    "model": "users.user",
+    "pk": "550e8400-e29b-41d4-a716-446655440001",
+    "fields": {
+      "email": "dr.smith@hospital.com",
+      "first_name": "John",
+      "last_name": "Smith",
+      "role": "doctor",
+      "is_active": true,
+      "is_staff": false,
+      "password": "pbkdf2_sha256$..."
+    }
+  },
+  {
+    "model": "users.doctor",
+    "pk": "550e8400-e29b-41d4-a716-446655440001",
+    "fields": {
+      "speciality": "General",
+      "dob": "1980-01-15",
+      "experience": 10,
+      "working_day": "1,2,3,4,5",
+      "from_time": "09:00:00",
+      "to_time": "17:00:00",
+      "description": "Experienced general practitioner",
+      "is_available": true
+    }
+  }
+]
