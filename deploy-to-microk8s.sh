@@ -2,7 +2,7 @@
 # deploy-to-microk8s.sh
 set -e
 
-echo "🚀 Healthcare System - MicroK8s Deployment"
+echo "Healthcare System - MicroK8s Deployment"
 echo "=========================================="
 
 # Colors for output
@@ -12,15 +12,15 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 print_status() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}$1${NC}"
 }
 
 print_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}$1${NC}"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠️ $1${NC}"
+    echo -e "${YELLOW}$1${NC}"
 }
 
 # Check MicroK8s is ready
