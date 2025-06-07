@@ -4,7 +4,7 @@ A comprehensive healthcare appointment booking system built with Django REST Fra
 
 ## Contributing
 
-This is an academic project for SIT220 Data Wrangling. For questions or suggestions:
+This is an academic project for SIT226 Cloud Automation Technologies. For questions or suggestions:
 - Student Name: **Vu Hoang Nam Doan**
 - Student Number: s224021565
 - Outlook: s224021565@deakin.edu.au
