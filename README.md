@@ -2,6 +2,24 @@
 
 A comprehensive healthcare appointment booking system built with Django REST Framework and React. The system provides role-based access for patients, doctors, and administrators with a modern web interface and cloud-ready deployment.
 
+## Contributing
+
+This is an academic project for SIT220 Data Wrangling. For questions or suggestions:
+- Student Name: **Vu Hoang Nam Doan**
+- Student Number: s224021565
+- Outlook: s224021565@deakin.edu.au
+- Email: vuhoangnamdoan1605@gmail.com
+- LinkedIn: [Vu Hoang Nam Doan](https://www.linkedin.com/in/vuhoangnamdoan/)
+- Course: S379 - Bachelor of Data Science
+
+However, suggestions for improvements are welcome:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/improvement`)
+3. Commit changes (`git commit -am 'Add improvement'`)
+4. Push to branch (`git push origin feature/improvement`)
+5. Create a Pull Request
+
 ## 1. Architecture Overview
 
 - **Backend**: Django REST Framework with JWT authentication
@@ -492,24 +510,7 @@ python manage.py runserver
 npm start
 ```
 
-## 18. Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
-
-## 19. Support
-
-For support and questions:
-- **Documentation**: Refer to this README
-- **Issues**: GitHub Issues for bug reports
-- **Discussions**: GitHub Discussions for questions
-- **Email**: vuhoangnamdoan1605@gmail.com
-- **LinkedIn**: https://www.linkedin.com/in/vuhoangnamdoan/
-
-## 20. Access Information
+## 18. Access Information
 
 ### a. Local Development
 - **Frontend**: http://localhost:3000
@@ -522,5 +523,5 @@ For support and questions:
 - **API**: http://localhost/api
 
 ### c. Default Test Credentials
-- **Admin**: admin@hospital.com / admin123pass!
+- **Admin**: admin@hospital.com / admin123pass
 ---
