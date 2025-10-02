@@ -25,7 +25,39 @@ pipeline {
         // 'ssh-creds-staging': SSH private key credential ID for staging server
         // 'kube-creds': Kubernetes service account or kubeconfig credential ID
     }
-    
+    stage {
+
+        // 1. BUILD STAGE: Containerize Django and React
+        stage('Build Artifacts (Docker)') {
+            steps {
+                echo 'Building frontend and backend Docker images...'
+
+                // Build the React Frontend assets first
+                // sh 'cd frontend && npm install && npm run build'
+                nodejs('Node_20') { 
+                    // FRONTEND BUILD STEPS
+                    sh 'cd frontend && npm install'
+                    sh 'cd frontend && npm run build'
+                }
+
+
+                script {
+                    // Build backend image (from root-level Dockerfile)
+                    docker.build("${DOCKER_REGISTRY}/booking-backend:${BUILD_ID}", '.')
+                    // Build frontend image (assuming a simple Dockerfile in frontend/ or serving the build output)
+                    docker.build("${DOCKER_REGISTRY}/booking-frontend:${BUILD_ID}", './frontend')
+
+                    // Push images to DockerHub
+                    withCredentials([usernamePassword(credentialsId: 'docker-creds', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                        sh "docker push ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID}"
+                        sh "docker push ${DOCKER_REGISTRY}/booking-frontend:${BUILD_ID}"
+                    }
+                }
+            }
+        }
+
+        // 2. TEST STAGE: Run PyTest (Django) and Jest (React)
         stage('Test') {
             steps {
                 script {
