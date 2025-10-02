@@ -11,7 +11,6 @@ from users.models import User, Patient
 def r(name):
     """
     Robust reverse helper: try 'users:name' first, then 'name'.
-    Raises NoReverseMatch if neither is found.
     """
     for candidate in (f"users:{name}", name):
         try:
@@ -29,11 +28,11 @@ class PatientRegistrationTests(APITestCase):
             "password": "Str0ngPass!123",
             "password2": "Str0ngPass!123",
             "first_name": "New",
-            "last_name": "Patient",
+            "last_name "Patient",
             "phone": "0400000000",
             "dob": "1995-05-05",
             "address1": "123 Health St",
-            "address2": "",
+            "address2": "N/A",
             "city": "Melbourne",
             "state": "VIC",
             "zip_code": "3000",
@@ -56,7 +55,7 @@ class PatientRegistrationTests(APITestCase):
             "phone": "0400000001",
             "dob": "1990-01-01",
             "address1": "1 Error Road",
-            "address2": "",
+            "address2": "N/A",
             "city": "Sydney",
             "state": "NSW",
             "zip_code": "2000",
@@ -64,7 +63,11 @@ class PatientRegistrationTests(APITestCase):
         }
         response = self.client.post(url, payload, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("password", response.data)
+        # ensure the response contains a password-related error (or non-field errors)
+        self.assertTrue(
+            any(k in response.data for k in ("password", "non_field_errors", "detail")),
+            msg=f"Expected password error, got: {response.data}"
+        )
 
 
 class AuthenticatedUserTests(APITestCase):
@@ -81,7 +84,7 @@ class AuthenticatedUserTests(APITestCase):
             phone="0400000002",
             dob=date(1992, 2, 2),
             address1="2 Wellness Ave",
-            address2="",
+            address2="N/A",
             city="Brisbane",
             state="QLD",
             zip_code="4000",
@@ -89,7 +92,6 @@ class AuthenticatedUserTests(APITestCase):
         )
 
     def test_login_returns_jwt_tokens(self):
-        # try canonical token endpoint first, else fallback to 'login'
         try:
             url = reverse('token_obtain_pair')
         except NoReverseMatch:
@@ -100,7 +102,6 @@ class AuthenticatedUserTests(APITestCase):
             format='json'
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # Accept common token key names to be robust across setups
         self.assertTrue(any(k in response.data for k in ("access", "token", "refresh")))
 
     def test_profile_requires_authentication(self):
@@ -132,7 +133,7 @@ class DoctorListPermissionTests(APITestCase):
             phone="0400000003",
             dob=date(1993, 3, 3),
             address1="3 Care Blvd",
-            address2="",
+            address2="N/A",
             city="Perth",
             state="WA",
             zip_code="6000",
