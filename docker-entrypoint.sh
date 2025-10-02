@@ -20,5 +20,5 @@ else:
 "
 fi
 
-echo "🚀 Starting Django development server..."
-exec "$@"
+echo "Starting Django development server..."
+exec python manage.py runserver 0.0.0.0:8000
