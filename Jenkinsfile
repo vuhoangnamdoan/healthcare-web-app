@@ -8,16 +8,16 @@ pipeline {
         
         // SonarQube installation name (as configured in Jenkins -> Manage Jenkins -> Global Tool Configuration)
         SONAR_SCANNER_HOME = tool 'SonarQubeScanner' 
-        SONAR_URL = 'http://your-sonarqube-server-ip:9000'
+        SONAR_URL = 'http://localhost:9000'
         
         // Docker registry (e.g., your Docker Hub username)
-        DOCKER_REGISTRY = 'your-docker-hub-username' 
+        DOCKER_REGISTRY = 'vuhoangnamdoan' 
         
         // Staging/Test Server SSH details
-        STAGING_SERVER = 'user@staging.example.com' 
+        STAGING_SERVER = 'namdoan@172.26.108.190' 
         
         // --- KUBERNETES/RELEASE VARIABLES ---
-        K8S_CONTEXT = 'your-microk8s-context-name' // e.g., 'microk8s'
+        K8S_CONTEXT = 'docker-desktop' // e.g., 'microk8s'
         K8S_NAMESPACE = 'production'
         
         // --- CREDENTIALS (Must be configured in Jenkins) ---
