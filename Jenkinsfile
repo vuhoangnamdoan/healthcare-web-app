@@ -34,7 +34,13 @@ pipeline {
                 echo 'Building frontend and backend Docker images...'
                 
                 // Build the React Frontend assets first
-                sh 'cd frontend && npm install && npm run build'
+                // sh 'cd frontend && npm install && npm run build'
+                nodejs('Node_20') { 
+                    // FRONTEND BUILD STEPS
+                    sh 'cd frontend && npm install'
+                    sh 'cd frontend && npm run build'
+                }
+
                 
                 script {
                     // Build backend image (from root-level Dockerfile)
