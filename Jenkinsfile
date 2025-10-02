@@ -66,6 +66,7 @@ pipeline {
                 withDockerRegistry(credentialsId: 'docker-creds', url: '') {
                     // Backend (PyTest)
                     // sh "docker run --rm ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} sh -c 'pytest --junitxml=reports/backend-tests.xml'"
+                    sh "docker run --rm ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} pytest --junitxml=reports/backend-tests.xml"
                     // sh "docker run --rm --entrypoint /bin/sh ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} -c 'pytest --junitxml=reports/backend-tests.xml'"
                     sh "docker run --rm -e DJANGO_SETTINGS_MODULE=health_system.settings --entrypoint /bin/sh ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} -c 'pytest --junitxml=reports/backend-tests.xml'"
                     // Frontend (Jest) - assuming Jest is configured in package.json
