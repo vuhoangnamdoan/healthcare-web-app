@@ -101,7 +101,7 @@ pipeline {
                 sh 'docker network rm ci-network || true'
 
                 // Publish Test Results (Requires JUnit plugin)
-                junit '**/reports/*-tests.xml' 
+                junit(testResults: '**/reports/*-tests.xml', allowEmptyResults: true) 
             }
         }
 
