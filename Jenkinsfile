@@ -2,30 +2,31 @@
 
 pipeline {
     agent any 
-    
+
     environment {
         // --- CONFIGURE THESE ENVIRONMENT VARIABLES ---
-        
+
         // SonarQube installation name (as configured in Jenkins -> Manage Jenkins -> Global Tool Configuration)
         SONAR_SCANNER_HOME = tool 'SonarQubeScanner' 
         SONAR_URL = 'http://localhost:9000'
-        
+
         // Docker registry (e.g., your Docker Hub username)
         DOCKER_REGISTRY = 'vuhoangnamdoan' 
-        
+
         // Staging/Test Server SSH details
         STAGING_SERVER = 'namdoan@172.26.108.190' 
-        
+
         // --- KUBERNETES/RELEASE VARIABLES ---
         K8S_CONTEXT = 'docker-desktop' // e.g., 'microk8s'
         K8S_NAMESPACE = 'production'
-        
+
         // --- CREDENTIALS (Must be configured in Jenkins) ---
         // 'docker-creds': DockerHub username/password credential ID
         // 'ssh-creds-staging': SSH private key credential ID for staging server
         // 'kube-creds': Kubernetes service account or kubeconfig credential ID
     }
-    stage {
+
+    stages {
 
         // 1. BUILD STAGE: Containerize Django and React
         stage('Build Artifacts (Docker)') {
@@ -68,74 +69,74 @@ pipeline {
                         // 1. BACKEND PYTEST (CRITICAL: Added PYTHONPATH and DJANGO_ALLOW_ASYNC_UNSAFE)
                         backend_tests: {
                             sh '''
-# Create network and start a disposable Postgres for tests
-docker network create ci-network || true
-docker rm -f ci-postgres >/dev/null 2>&1 || true
-docker run -d --name ci-postgres --network ci-network \
-  -e POSTGRES_DB=healthdb -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres123 \
-  postgres:15-alpine
-
-# Wait for Postgres to accept connections
-echo "Waiting for Postgres..."
-until docker run --rm --network ci-network postgres:15-alpine pg_isready -h ci-postgres -U postgres >/dev/null 2>&1; do sleep 1; done
-
-# Run backend tests in an ephemeral Python container using workspace sources
-docker run --rm \
-  --network ci-network \
-  -v "${WORKSPACE}":/app -w /app \
-  -v "${WORKSPACE}/reports":/reports \
-  -e DJANGO_SETTINGS_MODULE=health_system.settings \
-  -e POSTGRES_HOST=ci-postgres \
-  -e POSTGRES_DB=healthdb \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres123 \
-  -e PYTHONPATH=/app \
-  -e DJANGO_ALLOW_ASYNC_UNSAFE=true \
-  python:3.11-slim \
-  bash -lc "\
-    pip install --no-cache-dir -r requirements.txt pytest pytest-django >/dev/null && \
-    pytest -q --junitxml=/reports/backend-tests.xml || test_exit_code=\$? ; exit \${test_exit_code:-0}\
-  "
-
-# Cleanup Postgres and network
-docker rm -f ci-postgres || true
-docker network rm ci-network || true
-'''
+                            # Create network and start a disposable Postgres for tests
+                            docker network create ci-network || true
+                            docker rm -f ci-postgres >/dev/null 2>&1 || true
+                            docker run -d --name ci-postgres --network ci-network \
+                              -e POSTGRES_DB=healthdb -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres123 \
+                              postgres:15-alpine
+                            
+                            # Wait for Postgres to accept connections
+                            echo "Waiting for Postgres..."
+                            until docker run --rm --network ci-network postgres:15-alpine pg_isready -h ci-postgres -U postgres >/dev/null 2>&1; do sleep 1; done
+                            
+                            # Run backend tests in an ephemeral Python container using workspace sources
+                            docker run --rm \
+                              --network ci-network \
+                              -v "${WORKSPACE}":/app -w /app \
+                              -v "${WORKSPACE}/reports":/reports \
+                              -e DJANGO_SETTINGS_MODULE=health_system.settings \
+                              -e POSTGRES_HOST=ci-postgres \
+                              -e POSTGRES_DB=healthdb \
+                              -e POSTGRES_USER=postgres \
+                              -e POSTGRES_PASSWORD=postgres123 \
+                              -e PYTHONPATH=/app \
+                              -e DJANGO_ALLOW_ASYNC_UNSAFE=true \
+                              python:3.11-slim \
+                              bash -lc "\
+                                pip install --no-cache-dir -r requirements.txt pytest pytest-django >/dev/null && \
+                                pytest -q --junitxml=/reports/backend-tests.xml || test_exit_code=\$? ; exit \${test_exit_code:-0}\
+                              "
+                            
+                            # Cleanup Postgres and network
+                            docker rm -f ci-postgres || true
+                            docker network rm ci-network || true
+                            '''
                         },
                         
                         // 2. FRONTEND TESTS (Junit XML generation)
                         frontend_tests: {
                             sh '''
-# Frontend tests (runs in Node container). Expect frontend tests to emit JUnit XML to /reports/frontend-tests.xml.
-docker run --rm -v "${WORKSPACE}/frontend":/app -w /app node:18-alpine sh -lc "\
-  if [ -f package.json ]; then \
-    npm ci --silent && \
-    # Example: run tests and write JUnit with jest-junit if configured
-    (npm test -- --ci --reporters=default --reporters=jest-junit 2>/dev/null || true); \
-  else echo 'No frontend package.json, skipping frontend tests'; fi"
-# Copy any generated report into workspace (jest-junit default: junit.xml)
-if [ -f frontend/junit.xml ]; then mv frontend/junit.xml reports/frontend-tests.xml; fi
-'''
+                            # Frontend tests (runs in Node container). Expect frontend tests to emit JUnit XML to /reports/frontend-tests.xml.
+                            docker run --rm -v "${WORKSPACE}/frontend":/app -w /app node:18-alpine sh -lc "\
+                              if [ -f package.json ]; then \
+                                npm ci --silent && \
+                                # Example: run tests and write JUnit with jest-junit if configured
+                                (npm test -- --ci --reporters=default --reporters=jest-junit 2>/dev/null || true); \
+                              else echo 'No frontend package.json, skipping frontend tests'; fi"
+                            # Copy any generated report into workspace (jest-junit default: junit.xml)
+                            if [ -f frontend/junit.xml ]; then mv frontend/junit.xml reports/frontend-tests.xml; fi
+                            '''
                         },
                         
                         // 3. API INTEGRATION (Postman/Newman)
                         api_integration_tests: {
                             sh '''
-# API integration tests using Newman (Postman) example.
-# We assume the collection file is named 'collection.json' and environment 'env.json'.
-if [ -d "${WORKSPACE}/postman" ]; then
-  docker run --rm -v "${WORKSPACE}/postman":/etc/newman postman/newman:alpine \
-    run "collection.json" --environment "env.json" \
-    --reporters junit --reporter-junit-export /etc/newman/api-integration-tests.xml || true
-  
-  # Newman saves the output inside the mounted volume /etc/newman. We move it to the reports folder.
-  if [ -f "${WORKSPACE}/postman/api-integration-tests.xml" ]; then
-      mv "${WORKSPACE}/postman/api-integration-tests.xml" "${WORKSPACE}/reports/api-integration-tests.xml"
-  fi
-else
-  echo "No postman collection found; skipping API integration tests."
-fi
-'''
+                            # API integration tests using Newman (Postman) example.
+                            # We assume the collection file is named 'collection.json' and environment 'env.json'.
+                            if [ -d "${WORKSPACE}/postman" ]; then
+                              docker run --rm -v "${WORKSPACE}/postman":/etc/newman postman/newman:alpine \
+                                run "collection.json" --environment "env.json" \
+                                --reporters junit --reporter-junit-export /etc/newman/api-integration-tests.xml || true
+                              
+                              # Newman saves the output inside the mounted volume /etc/newman. We move it to the reports folder.
+                              if [ -f "${WORKSPACE}/postman/api-integration-tests.xml" ]; then
+                                  mv "${WORKSPACE}/postman/api-integration-tests.xml" "${WORKSPACE}/reports/api-integration-tests.xml"
+                              fi
+                            else
+                              echo "No postman collection found; skipping API integration tests."
+                            fi
+                            '''
                         }
                     ) // end parallel
                 }
