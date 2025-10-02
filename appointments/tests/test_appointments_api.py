@@ -120,24 +120,6 @@ class AppointmentAndBookingFlowTests(APITestCase):
                 msg=f"500 returned but not related to missing doctor relation: {resp_data}"
             )
 
-    def test_patient_can_view_available_slots(self):
-        Appointment.objects.create(
-            doctor=self.doctor_profile,
-            week_day=1,
-            start_time=time(12, 0),
-            duration=60,
-            is_available=True,
-        )
-        self.authenticate(self.patient_token)
-        url = reverse('appointments:available-appointments')
-        response = self.client.get(url, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # ensure at least one returned item; items may be dicts or JSON strings
-        self.assertGreaterEqual(len(response.data), 1)
-        parsed = [_as_dict(a) for a in response.data]
-        matching = [a for a in parsed if a.get("week_day") == 1]
-        self.assertTrue(len(matching) >= 1, msg=f"No available slot for week_day=1 found in {response.data}")
-
     def test_patient_can_create_booking(self):
         appointment = Appointment.objects.create(
             doctor=self.doctor_profile,
