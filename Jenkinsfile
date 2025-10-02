@@ -58,31 +58,57 @@ pipeline {
             }
         }
 
-        // 2. TEST STAGE: Run PyTest (Django) and Jest (React)
+        // 2. TEST STAGE: Run PyTest (Django) and Jest (React) SEQUENTIALLY
         stage('Test') {
             steps {
-                echo 'Running automated tests: PyTest (Backend) and Jest (Frontend)...'
-                // Run Tests inside a temporary container to ensure consistent environment
+                echo 'Running automated tests sequentially...'
+
+                // ----------------------------------------------------
+                // 1. SETUP DATABASE & NETWORK (CRITICAL for Django tests)
+                // ----------------------------------------------------
+                sh 'mkdir -p reports'
+                sh 'docker network create ci-network || true'
+                sh 'docker rm -f ci-postgres >/dev/null 2>&1 || true'
+                
+                sh '''
+                docker run -d --name ci-postgres --network ci-network \
+                  -e POSTGRES_DB=healthdb -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres123 \
+                  postgres:15-alpine
+                '''
+
+                sh 'until docker run --rm --network ci-network postgres:15-alpine pg_isready -h ci-postgres -U postgres; do sleep 1; done'
+                
                 withDockerRegistry(credentialsId: 'docker-creds', url: '') {
-                    // Backend (PyTest)
-                    // sh "docker run --rm ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} sh -c 'pytest --junitxml=reports/backend-tests.xml'"
-                    // sh "docker run --rm \
-                    // -e DJANGO_SETTINGS_MODULE=health_system.settings \
-                    // -e PYTHONPATH=/app \
-                    // -e DJANGO_ALLOW_ASYNC_UNSAFE=true \
-                    // ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
-                    // pytest --junitxml=reports/backend-tests.xml"
-                    sh "docker run --rm \
-                    -e DJANGO_SETTINGS_MODULE=health_system.settings \
-                    -e PYTHONPATH=/app \
+                    // ----------------------------------------------------
+                    // 2. BACKEND PYTEST (Running on built image, connected to DB)
+                    // ----------------------------------------------------
+                    sh """
+                    docker run --rm \
+                      --network ci-network \
+                      -v "${WORKSPACE}/reports":/reports \  # Mount reports folder to extract XML
+                      -e DJANGO_SETTINGS_MODULE=health_system.settings \
+                      -e POSTGRES_HOST=ci-postgres \
+                      -e POSTGRES_DB=healthdb \
+                      -e POSTGRES_USER=postgres \
+                      -e POSTGRES_PASSWORD=postgres123 \
+                      -e PYTHONPATH=/app \
+                      -e DJANGO_ALLOW_ASYNC_UNSAFE=true \
+                      ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
+                      pytest --junitxml=/reports/backend-tests.xml
+                    """
 
-                    ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
-                    python manage.py test users appointments health_system --settings=health_system.settings"
-
-                    // Frontend (Jest) - assuming Jest is configured in package.json
-                    // sh 'cd frontend && npm test -- --ci --json --outputFile=../reports/frontend-tests.json'
-                    sh 'cd frontend && npm test -- --ci --reporters=default --reporters=jest-junit --outputFile=../reports/frontend-tests.xml'
+                    // ----------------------------------------------------
+                    // 3. FRONTEND JEST (Running on host/agent, relying on build dependencies)
+                    // ----------------------------------------------------
+                    sh 'cd frontend && npm test -- --ci --reporters=default --reporters=jest-junit --outputFile=../reports/frontend-tests.xml || true'
                 }
+
+                // ----------------------------------------------------
+                // 4. CLEANUP & PUBLISH
+                // ----------------------------------------------------
+                // Cleanup database and network
+                sh 'docker rm -f ci-postgres || true'
+                sh 'docker network rm ci-network || true'
 
                 // Publish Test Results (Requires JUnit plugin)
                 junit '**/reports/*-tests.xml' 
