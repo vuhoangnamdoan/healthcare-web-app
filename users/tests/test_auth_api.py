@@ -28,7 +28,7 @@ class PatientRegistrationTests(APITestCase):
             "password": "Str0ngPass!123",
             "password2": "Str0ngPass!123",
             "first_name": "New",
-            "last_name "Patient",
+            "last_name": "Patient",
             "phone": "0400000000",
             "dob": "1995-05-05",
             "address1": "123 Health St",
