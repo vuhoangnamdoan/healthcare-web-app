@@ -108,10 +108,10 @@ pipeline {
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
             steps {
-                echo 'Running SonarQube analysis...'
-                // The sonar-project.properties file should be in your project root
-                withSonarQubeEnv(installationName: SONAR_SCANNER_HOME) {
-                    sh "${SONAR_SCANNER_HOME}/bin/sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
+                // The pipeline now uses SONAR_SCANNER_NAME to refer to the tool installation name.
+                // The tool() function resolves the actual path dynamically.
+                withSonarQubeEnv(installationName: SONAR_SCANNER_NAME) {
+                    sh "${tool(SONAR_SCANNER_NAME)}/bin/sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
                 }
                 // Gate the pipeline based on SonarQube Quality Gate result
                 timeout(time: 5, unit: 'MINUTES') {
