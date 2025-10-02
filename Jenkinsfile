@@ -31,8 +31,6 @@ pipeline {
         // 1. BUILD STAGE: Containerize Django and React
         stage('Build Artifacts (Docker)') {
             steps {
-                echo 'Building frontend and backend Docker images...'
-
                 // Build the React Frontend assets first
                 // sh 'cd frontend && npm install && npm run build'
                 nodejs('Node_20') { 
@@ -40,8 +38,7 @@ pipeline {
                     sh 'cd frontend && npm install'
                     sh 'cd frontend && npm run build'
                 }
-
-
+                
                 script {
                     // Build backend image (from root-level Dockerfile)
                     docker.build("${DOCKER_REGISTRY}/booking-backend:${BUILD_ID}", '.')
@@ -61,8 +58,6 @@ pipeline {
         // 2. TEST STAGE: Run PyTest (Django) and Jest (React) SEQUENTIALLY
         stage('Test') {
             steps {
-                echo 'Running automated tests sequentially...'
-
                 // ----------------------------------------------------
                 // 1. SETUP DATABASE & NETWORK (CRITICAL for Django tests)
                 // ----------------------------------------------------
@@ -85,7 +80,7 @@ pipeline {
                     sh """
                     docker run --rm \
                       --network ci-network \
-                      -v "${WORKSPACE}/reports":/reports \  # Mount reports folder to extract XML
+                      -v "${WORKSPACE}/reports":/reports \
                       -e DJANGO_SETTINGS_MODULE=health_system.settings \
                       -e POSTGRES_HOST=ci-postgres \
                       -e POSTGRES_DB=healthdb \
