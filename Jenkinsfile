@@ -58,99 +58,37 @@ pipeline {
             }
         }
 
-        stage('Debug: List Files') {
-            steps {
-                echo 'Listing critical files in workspace to confirm presence for Docker mounts...'
-                // Look for requirements.txt, package.json, and the postman collection
-                sh 'find . -maxdepth 3 -name "requirements.txt" -o -name "package.json" -o -name "*.json"'
-                sh 'echo "--- END FILE LIST ---"'
-            }
-        }
-        
         // 2. TEST STAGE: Run PyTest (Django) and Jest (React)
         stage('Test') {
             steps {
-                script {
-                    sh 'mkdir -p ${WORKSPACE}/reports'
-                    sh 'mkdir -p ${WORKSPACE}/postman' // Ensure the postman folder exists
+                echo 'Running automated tests: PyTest (Backend) and Jest (Frontend)...'
+                // Run Tests inside a temporary container to ensure consistent environment
+                withDockerRegistry(credentialsId: 'docker-creds', url: '') {
+                    // Backend (PyTest)
+                    // sh "docker run --rm ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} sh -c 'pytest --junitxml=reports/backend-tests.xml'"
+                    // sh "docker run --rm \
+                    // -e DJANGO_SETTINGS_MODULE=health_system.settings \
+                    // -e PYTHONPATH=/app \
+                    // -e DJANGO_ALLOW_ASYNC_UNSAFE=true \
+                    // ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
+                    // pytest --junitxml=reports/backend-tests.xml"
+                    sh "docker run --rm \
+                    -e DJANGO_SETTINGS_MODULE=health_system.settings \
+                    -e PYTHONPATH=/app \
 
-                    parallel(
-                        // 1. BACKEND PYTEST (CRITICAL: Added PYTHONPATH and DJANGO_ALLOW_ASYNC_UNSAFE)
-                        backend_tests: {
-                            sh '''
-                            docker network create ci-network || true
-                            docker rm -f ci-postgres >/dev/null 2>&1 || true
-                            docker run -d --name ci-postgres --network ci-network \
-                              -e POSTGRES_DB=healthdb -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres123 \
-                              postgres:15-alpine
-                            
-                            # Wait for Postgres to accept connections
-                            echo "Waiting for Postgres..."
-                            until docker run --rm --network ci-network postgres:15-alpine pg_isready -h ci-postgres -U postgres >/dev/null 2>&1; do sleep 1; done
-                            
-                            # Run backend tests in an ephemeral Python container using workspace sources
-                            docker run --rm \
-                              --network ci-network \
-                              -v "${WORKSPACE}":/app -w /app \
-                              -v "${WORKSPACE}/reports":/reports \
-                              -e DJANGO_SETTINGS_MODULE=health_system.settings \
-                              -e POSTGRES_HOST=ci-postgres \
-                              -e POSTGRES_DB=healthdb \
-                              -e POSTGRES_USER=postgres \
-                              -e POSTGRES_PASSWORD=postgres123 \
-                              -e PYTHONPATH=/app \
-                              -e DJANGO_ALLOW_ASYNC_UNSAFE=true \
-                              python:3.11-slim \
-                              bash -lc "\
-                                pip install --no-cache-dir -r requirements.txt >/dev/null && \
-                                pytest -q --junitxml=/reports/backend-tests.xml || test_exit_code=\$? ; exit \${test_exit_code:-0}\
-                              "
-                            
-                            # Cleanup Postgres and network
-                            docker rm -f ci-postgres || true
-                            docker network rm ci-network || true
-                            '''
-                        },
-                        
-                        // 2. FRONTEND TESTS (Junit XML generation)
-                        frontend_tests: {
-                            sh '''
-                            # Frontend tests (runs in Node container). Expect frontend tests to emit JUnit XML to /reports/frontend-tests.xml.
-                            docker run --rm -v "${WORKSPACE}/frontend":/app -w /app node:18-alpine sh -lc "\
-                              if [ -f package.json ]; then \
-                                npm ci --silent && \
-                                # Example: run tests and write JUnit with jest-junit if configured
-                                (npm test -- --ci --reporters=default --reporters=jest-junit 2>/dev/null || true); \
-                              else echo 'No frontend package.json, skipping frontend tests'; fi"
-                            # Copy any generated report into workspace (jest-junit default: junit.xml)
-                            if [ -f frontend/junit.xml ]; then mv frontend/junit.xml reports/frontend-tests.xml; fi
-                            '''
-                        },
-                        
-                        // 3. API INTEGRATION (Postman/Newman)
-                        api_integration_tests: {
-                            sh '''
-                            # API integration tests using Newman (Postman) example.
-                            # We assume the collection file is named 'collection.json' and environment 'env.json'.
-                            if [ -d "${WORKSPACE}/postman" ]; then
-                              docker run --rm -v "${WORKSPACE}/postman":/etc/newman postman/newman:alpine \
-                                run "collection.json" --environment "env.json" \
-                                --reporters junit --reporter-junit-export /etc/newman/api-integration-tests.xml || true
-                              
-                              # Newman saves the output inside the mounted volume /etc/newman. We move it to the reports folder.
-                              if [ -f "${WORKSPACE}/postman/api-integration-tests.xml" ]; then
-                                  mv "${WORKSPACE}/postman/api-integration-tests.xml" "${WORKSPACE}/reports/api-integration-tests.xml"
-                              fi
-                            else
-                              echo "No postman collection found; skipping API integration tests."
-                            fi
-                            '''
-                        }
-                    ) // end parallel
+                    ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
+                    python manage.py test users appointments health_system --settings=health_system.settings"
+
+                    // Frontend (Jest) - assuming Jest is configured in package.json
+                    // sh 'cd frontend && npm test -- --ci --json --outputFile=../reports/frontend-tests.json'
+                    sh 'cd frontend && npm test -- --ci --reporters=default --reporters=jest-junit --outputFile=../reports/frontend-tests.xml'
                 }
+
+                // Publish Test Results (Requires JUnit plugin)
+                junit '**/reports/*-tests.xml' 
             }
         }
-        
+
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
             steps {
@@ -165,14 +103,14 @@ pipeline {
                 }
             }
         }
-        
+
         // 4. SECURITY STAGE: Bandit Analysis
         stage('Security (Bandit)') {
             steps {
                 echo 'Running Bandit security analysis on the Django backend...'
                 // Run Bandit on the Python code (recursive scan on backend apps)
                 sh 'bandit -r users/ appointments/ -o reports/bandit-report.json -f json'
-                
+
                 // Optional: Check the exit code of Bandit to fail the stage on HIGH severity issues
                 // Example: sh('bandit -r . || exit 1') 
             }
@@ -182,7 +120,7 @@ pipeline {
         stage('Deploy to Staging (Docker Compose)') {
             steps {
                 echo 'Deploying to Staging Environment using Docker Compose on test server...'
-                
+
                 // Use SSH to log into the staging server and execute deployment
                 // (Requires ssh-creds-staging to be set up)
                 withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
@@ -193,7 +131,7 @@ pipeline {
                 echo 'Staging deployment complete. Run acceptance tests now.'
             }
         }
-        
+
         // 6. RELEASE STAGE: Promote to Production (Kubernetes)
         stage('Release to Production (Kubernetes)') {
             steps {
@@ -208,7 +146,7 @@ pipeline {
                 echo 'Production release complete.'
             }
         }
-        
+
         // 7. MONITORING STAGE: Datadog Integration
         stage('Monitoring & Alerting (Datadog)') {
             steps {
