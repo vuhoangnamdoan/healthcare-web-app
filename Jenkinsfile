@@ -65,7 +65,8 @@ pipeline {
                 // Run Tests inside a temporary container to ensure consistent environment
                 withDockerRegistry(credentialsId: 'docker-creds', url: '') {
                     // Backend (PyTest)
-                    sh "docker run --rm ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} sh -c 'pytest --junitxml=reports/backend-tests.xml'"
+                    // sh "docker run --rm ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} sh -c 'pytest --junitxml=reports/backend-tests.xml'"
+                    sh "docker run --rm --entrypoint /bin/sh ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} -c 'pytest --junitxml=reports/backend-tests.xml'"
                     // Frontend (Jest) - assuming Jest is configured in package.json
                     // sh 'cd frontend && npm test -- --ci --json --outputFile=../reports/frontend-tests.json'
                     sh 'cd frontend && npm test -- --ci --reporters=default --reporters=jest-junit --outputFile=../reports/frontend-tests.xml'
