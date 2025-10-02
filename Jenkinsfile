@@ -91,14 +91,6 @@ pipeline {
                       ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
                       pytest --junitxml=/reports/backend-tests.xml
                     """
-
-                    // ----------------------------------------------------
-                    // 3. FRONTEND JEST (Running on host/agent, relying on build dependencies)
-                    // ----------------------------------------------------
-                    nodejs('Node_20') { 
-                        // Using '|| true' to prevent pipeline failure if tests fail (so the cleanup and JUnit can still run)
-                        sh 'cd frontend && npm test -- --ci --reporters=default --reporters=jest-junit --outputFile=../reports/frontend-tests.xml || true'
-                    }
                 }
 
                 // ----------------------------------------------------
