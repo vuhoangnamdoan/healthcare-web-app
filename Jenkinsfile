@@ -58,6 +58,15 @@ pipeline {
             }
         }
 
+        stage('Debug: List Files') {
+            steps {
+                echo 'Listing critical files in workspace to confirm presence for Docker mounts...'
+                // Look for requirements.txt, package.json, and the postman collection
+                sh 'find . -maxdepth 3 -name "requirements.txt" -o -name "package.json" -o -name "*.json"'
+                sh 'echo "--- END FILE LIST ---"'
+            }
+        }
+        
         // 2. TEST STAGE: Run PyTest (Django) and Jest (React)
         stage('Test') {
             steps {
@@ -69,7 +78,6 @@ pipeline {
                         // 1. BACKEND PYTEST (CRITICAL: Added PYTHONPATH and DJANGO_ALLOW_ASYNC_UNSAFE)
                         backend_tests: {
                             sh '''
-                            # Create network and start a disposable Postgres for tests
                             docker network create ci-network || true
                             docker rm -f ci-postgres >/dev/null 2>&1 || true
                             docker run -d --name ci-postgres --network ci-network \
@@ -94,7 +102,7 @@ pipeline {
                               -e DJANGO_ALLOW_ASYNC_UNSAFE=true \
                               python:3.11-slim \
                               bash -lc "\
-                                pip install --no-cache-dir -r requirements.txt pytest pytest-django >/dev/null && \
+                                pip install --no-cache-dir -r requirements.txt >/dev/null && \
                                 pytest -q --junitxml=/reports/backend-tests.xml || test_exit_code=\$? ; exit \${test_exit_code:-0}\
                               "
                             
