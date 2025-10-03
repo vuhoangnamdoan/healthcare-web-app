@@ -103,13 +103,11 @@ pipeline {
                 // The tool() function resolves the actual path dynamically.
                 script {
                     withSonarQubeEnv('SonarQubeScanner') {
-                        sh """
-                        ${SONAR_HOME}/bin/sonar-scanner \
+                        sh "${SONAR_HOME}/bin/sonar-scanner \
                         -Dsonar.projectKey=health-system-pipeline \
                         -Dsonar.projectName=Healthcare Booking System (CI/CD) \
                         -Dsonar.projectVersion=1.0 \
-                        -Dsonar.sources=.
-                        """
+                        -Dsonar.sources=."
                     }
                 }
                 // withSonarQubeEnv injects SONAR_HOST_URL, SONAR_TOKEN, etc.
