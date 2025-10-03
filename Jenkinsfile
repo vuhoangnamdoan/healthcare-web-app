@@ -115,10 +115,19 @@ pipeline {
                 //     // within declarative steps, avoiding intermediate variable definitions that cause scope issues.
                 //     sh "${tool(env.SONAR_SCANNER_NAME)}/bin/sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
                 // }
-                withSonarQubeEnv(installationName: env.SONAR_SCANNER_NAME) {
-                    // FIX: Removed the problematic tool() step. We now rely on the 'sonar-scanner' executable
-                    // being available in the PATH of the Jenkins agent.
-                    sh "sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
+                script {
+                    def scannerHome = tool(env.SONAR_SCANNER_NAME)
+                    
+                    // Critical Check: If tool() returns null, the tool is not configured.
+                    if (scannerHome == null || scannerHome.trim().isEmpty()) {
+                        error "SonarQube Scanner tool '${env.SONAR_SCANNER_NAME}' not found. Please check Jenkins > Manage Jenkins > Global Tool Configuration."
+                    }
+                    
+                    // withSonarQubeEnv injects SONAR_HOST_URL, SONAR_TOKEN, etc.
+                    withSonarQubeEnv(installationName: env.SONAR_SCANNER_NAME) {
+                        // Use the resolved, checked path
+                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
+                    }
                 }
                 // Gate the pipeline based on SonarQube Quality Gate result
                 timeout(time: 5, unit: 'MINUTES') {
