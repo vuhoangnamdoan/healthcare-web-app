@@ -108,7 +108,7 @@ pipeline {
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
             tools {
-                tool 'SonarQubeScanner'
+                sonarRunner 'SonarQubeScanner'
             }
             steps {
                 // The pipeline now uses SONAR_SCANNER_NAME to refer to the tool installation name.
