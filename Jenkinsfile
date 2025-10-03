@@ -7,6 +7,7 @@ pipeline {
         // --- CONFIGURE THESE ENVIRONMENT VARIABLES ---
 
         // SonarQube installation name (as configured in Jenkins -> Manage Jenkins -> Global Tool Configuration)
+        SONAR_HOME = tool 'SonarQubeScanner'
         SONAR_URL = 'http://localhost:9000'
 
         // Docker registry (e.g., your Docker Hub username)
@@ -57,9 +58,6 @@ pipeline {
         // 2. TEST STAGE: Run PyTest (Django) and Jest (React) SEQUENTIALLY
         stage('Test') {
             steps {
-                // ----------------------------------------------------
-                // 1. SETUP DATABASE & NETWORK (CRITICAL for Django tests)
-                // ----------------------------------------------------
                 sh 'mkdir -p reports'
                 sh 'docker network create ci-network || true'
                 sh 'docker rm -f ci-postgres >/dev/null 2>&1 || true'
@@ -73,9 +71,6 @@ pipeline {
                 sh 'until docker run --rm --network ci-network postgres:15-alpine pg_isready -h ci-postgres -U postgres; do sleep 1; done'
                 
                 withDockerRegistry(credentialsId: 'docker-creds', url: '') {
-                    // ----------------------------------------------------
-                    // 2. BACKEND PYTEST (Running on built image, connected to DB)
-                    // ----------------------------------------------------
                     sh """
                     docker run --rm \
                       --network ci-network \
@@ -92,9 +87,6 @@ pipeline {
                     """
                 }
 
-                // ----------------------------------------------------
-                // 4. CLEANUP & PUBLISH
-                // ----------------------------------------------------
                 // Cleanup database and network
                 sh 'docker rm -f ci-postgres || true'
                 sh 'docker network rm ci-network || true'
@@ -106,16 +98,13 @@ pipeline {
 
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
-            environment {
-                scannerHome = tool 'SonarQubeScanner'
-            }
             steps {
                 // The pipeline now uses SONAR_SCANNER_NAME to refer to the tool installation name.
                 // The tool() function resolves the actual path dynamically.
                 script {
                     withSonarQubeEnv('SonarQubeScanner') {
                         sh """
-                        ${scannerHome}/bin/sonar-scanner \
+                        ${SONAR_HOME}/bin/sonar-scanner \
                         -Dsonar.projectKey=health-system-pipeline \
                         -Dsonar.projectName=Healthcare Booking System (CI/CD) \
                         -Dsonar.projectVersion=1.0 \
