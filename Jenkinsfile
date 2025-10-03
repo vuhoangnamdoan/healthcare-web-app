@@ -110,16 +110,14 @@ pipeline {
             steps {
                 // The pipeline now uses SONAR_SCANNER_NAME to refer to the tool installation name.
                 // The tool() function resolves the actual path dynamically.
-                script{
-                    def scannerHome = tool(env.SONAR_SCANNER_NAME)
-                    
-                    withSonarQubeEnv(installationName: env.SONAR_SCANNER_NAME) {
-                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
-                    }
+                withSonarQubeEnv(installationName: env.SONAR_SCANNER_NAME) {
+                    // The 'tool' step must be used directly inside the 'sh' command for maximum reliability
+                    // within declarative steps, avoiding intermediate variable definitions that cause scope issues.
+                    sh "${tool(env.SONAR_SCANNER_NAME)}/bin/sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
+                }
                 // Gate the pipeline based on SonarQube Quality Gate result
-                    timeout(time: 5, unit: 'MINUTES') {
-                        waitForQualityGate abortPipeline: true
-                    }
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
