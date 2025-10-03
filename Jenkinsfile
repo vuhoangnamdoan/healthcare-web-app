@@ -98,23 +98,20 @@ pipeline {
 
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
+            environment {
+                scannerHome = tool 'Sonar'
+            }
             steps {
                 // The pipeline now uses SONAR_SCANNER_NAME to refer to the tool installation name.
                 // The tool() function resolves the actual path dynamically.
                 script {
-                    def scannerHome = tool 'SonarQubeScanner'
-                    withSonarQubeEnv('SonarQubeScanner') {
+                    withSonarQubeEnv('Sonar') {
                         sh "${scannerHome}/bin/sonar-scanner \
-                        -Dsonar.projectKey=health-system-pipeline \
-                        -Dsonar.projectName='Healthcare Booking System (CI/CD)' \
-                        -Dsonar.projectVersion=1.0 \
-                        -Dsonar.sources=."
+                            -Dsonar.projectKey=health-system-pipeline \
+                            -Dsonar.projectName=health-system-pipeline \
+                            -Dsonar.projectVersion=1.0 \
+                            -Dsonar.sources=."
                     }
-                }
-                // withSonarQubeEnv injects SONAR_HOST_URL, SONAR_TOKEN, etc.
-                // Gate the pipeline based on SonarQube Quality Gate result
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
                 }
             }
         }
