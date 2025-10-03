@@ -107,6 +107,9 @@ pipeline {
 
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
+            tools {
+                tool 'SonarQubeScanner'
+            }
             steps {
                 // The pipeline now uses SONAR_SCANNER_NAME to refer to the tool installation name.
                 // The tool() function resolves the actual path dynamically.
@@ -115,19 +118,10 @@ pipeline {
                 //     // within declarative steps, avoiding intermediate variable definitions that cause scope issues.
                 //     sh "${tool(env.SONAR_SCANNER_NAME)}/bin/sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
                 // }
-                script {
-                    def scannerHome = tool(env.SONAR_SCANNER_NAME)
-                    
-                    // Critical Check: If tool() returns null, the tool is not configured.
-                    if (scannerHome == null || scannerHome.trim().isEmpty()) {
-                        error "SonarQube Scanner tool '${env.SONAR_SCANNER_NAME}' not found. Please check Jenkins > Manage Jenkins > Global Tool Configuration."
-                    }
-                    
-                    // withSonarQubeEnv injects SONAR_HOST_URL, SONAR_TOKEN, etc.
-                    withSonarQubeEnv(installationName: env.SONAR_SCANNER_NAME) {
-                        // Use the resolved, checked path
-                        sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
-                    }
+                // withSonarQubeEnv injects SONAR_HOST_URL, SONAR_TOKEN, etc.
+                withSonarQubeEnv(installationName: env.SONAR_SCANNER_NAME) {
+                    // Now we can call 'sonar-scanner' directly because 'tools' added it to PATH
+                    sh "sonar-scanner -Dsonar.projectKey=health-system -Dsonar.sources=."
                 }
                 // Gate the pipeline based on SonarQube Quality Gate result
                 timeout(time: 5, unit: 'MINUTES') {
