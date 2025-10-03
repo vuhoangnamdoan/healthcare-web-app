@@ -102,10 +102,11 @@ pipeline {
                 // The pipeline now uses SONAR_SCANNER_NAME to refer to the tool installation name.
                 // The tool() function resolves the actual path dynamically.
                 script {
+                    def scannerHome = tool 'SonarQubeScanner'
                     withSonarQubeEnv('SonarQubeScanner') {
-                        sh "${SONAR_HOME}/bin/sonar-scanner \
+                        sh "${scannerHome}/bin/sonar-scanner \
                         -Dsonar.projectKey=health-system-pipeline \
-                        -Dsonar.projectName=Healthcare Booking System (CI/CD) \
+                        -Dsonar.projectName='Healthcare Booking System (CI/CD)' \
                         -Dsonar.projectVersion=1.0 \
                         -Dsonar.sources=."
                     }
