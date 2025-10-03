@@ -7,8 +7,8 @@ pipeline {
         // --- CONFIGURE THESE ENVIRONMENT VARIABLES ---
 
         // SonarQube installation name (as configured in Jenkins -> Manage Jenkins -> Global Tool Configuration)
-        SONAR_HOME = tool 'SonarQubeScanner'
-        SONAR_URL = 'http://localhost:9000'
+        // SONAR_HOME = tool 'SonarQubeScanner'
+        // SONAR_URL = 'http://localhost:9000'
 
         // Docker registry (e.g., your Docker Hub username)
         DOCKER_REGISTRY = 'vuhoangnamdoan' 
