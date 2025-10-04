@@ -108,6 +108,7 @@ pipeline {
                             -Dsonar.token=${SONAR_TOKEN_ENV}
                     '''
                 }
+            }
         }
 
         // 4. SECURITY STAGE: Bandit Analysis
