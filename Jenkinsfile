@@ -101,7 +101,6 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN_ENV')]) {
                     sh '''
-                        cd healthcare-web-app
                         sonar-scanner \
                             -Dsonar.projectKey=vuhoangnamdoan_healthcare-web-app \
                             -Dsonar.organization=nam-doan \
