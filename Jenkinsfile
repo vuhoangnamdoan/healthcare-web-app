@@ -107,7 +107,7 @@ pipeline {
                             -Dsonar.host.url=https://sonarcloud.io \
                             -Dsonar.token=${SONAR_TOKEN_ENV}
                     '''
-                }
+                }
             }
         }
 
