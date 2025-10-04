@@ -98,20 +98,16 @@ pipeline {
 
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
-            environment {
-                scannerHome = tool 'Sonar'
-            }
             steps {
-                // The pipeline now uses SONAR_SCANNER_NAME to refer to the tool installation name.
-                // The tool() function resolves the actual path dynamically.
-                script {
-                    withSonarQubeEnv('Sonar') {
-                        sh "${scannerHome}/bin/sonar-scanner \
-                            -Dsonar.projectKey=health-system-pipeline \
-                            -Dsonar.projectName=health-system-pipeline \
-                            -Dsonar.projectVersion=1.0 \
-                            -Dsonar.sources=."
-                    }
+                withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN_ENV')]) {
+                    sh '''
+                        cd 8.2CDevSecOps
+                        sonar-scanner \
+                            -Dsonar.projectKey=vuhoangnamdoan_healthcare-web-app \
+                            -Dsonar.organization=nam-doan \
+                            -Dsonar.host.url=https://sonarcloud.io \
+                            -Dsonar.token=${SONAR_TOKEN_ENV}
+                    '''
                 }
             }
         }
