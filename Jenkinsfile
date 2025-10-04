@@ -99,7 +99,7 @@ pipeline {
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
             steps {
-                withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN_ENV')]) {
+                withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN_ENV')]) {
                     sh '''
                         sonar-scanner \
                             -Dsonar.projectKey=vuhoangnamdoan_healthcare-web-app \
