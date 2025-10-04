@@ -96,11 +96,23 @@ pipeline {
             }
         }
 
+        stage('Find Sonar Scanner Path') {
+            steps {
+                echo 'Searching the filesystem for sonar-scanner...'
+                
+                // This command searches the entire system (starting from /) and
+                // redirects any permission errors (2>/dev/null) to keep the log clean.
+                sh 'find / -name sonar-scanner -type f 2>/dev/null'
+                
+                echo 'Search complete. Look for the absolute path above.'
+            }
+        }
+
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
             steps {
                 echo 'Running SonarCloud analysis...'
-                tool 'sonar-scanner'
+                tool 'Sonar'
                 
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN_ENV')]) {
                     sh "sonar-scanner -Dsonar.projectKey=vuhoangnamdoan_healthcare-web-app -Dsonar.organization=nam-doan -Dsonar.host.url=https://sonarcloud.io -Dsonar.sources=. -Dsonar.token=${SONAR_TOKEN_ENV}"
