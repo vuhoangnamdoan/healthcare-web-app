@@ -102,14 +102,15 @@ pipeline {
                 echo 'Running SonarCloud analysis...'
                 
                 withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_TOKEN_ENV')]) {
-                    sh ("""
-                        sonar-scanner \
-                        -Dsonar.projectKey=vuhoangnamdoan_healthcare-web-app \
-                        -Dsonar.organization=nam-doan \
-                        -Dsonar.host.url=https://sonarcloud.io \
-                        -Dsonar.sources=. \
-                        -Dsonar.token=$SONAR_TOKEN_ENV
-                    """)
+                    sh "sonar-scanner -Dsonar.projectKey=vuhoangnamdoan_healthcare-web-app -Dsonar.organization=nam-doan -Dsonar.host.url=https://sonarcloud.io -Dsonar.sources=. -Dsonar.token=${SONAR_TOKEN_ENV}"
+                    // sh ("""
+                    //     sonar-scanner \
+                    //     -Dsonar.projectKey=vuhoangnamdoan_healthcare-web-app \
+                    //     -Dsonar.organization=nam-doan \
+                    //     -Dsonar.host.url=https://sonarcloud.io \
+                    //     -Dsonar.sources=. \
+                    //     -Dsonar.token=$SONAR_TOKEN_ENV
+                    // """)
                 }
             }
         }
