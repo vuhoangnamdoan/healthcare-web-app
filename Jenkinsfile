@@ -96,18 +96,6 @@ pipeline {
             }
         }
 
-        // stage('Find Sonar Scanner Path') {
-        //     steps {
-        //         echo 'Searching the filesystem for sonar-scanner...'
-                
-        //         // This command searches the entire system (starting from /) and
-        //         // redirects any permission errors (2>/dev/null) to keep the log clean.
-        //         sh 'find / -name sonar-scanner -type f 2>/dev/null'
-                
-        //         echo 'Search complete. Look for the absolute path above.'
-        //     }
-        // }
-
         // 3. CODE QUALITY STAGE: SonarQube Analysis
         stage('Code Quality (SonarQube)') {
             steps {
@@ -141,11 +129,12 @@ pipeline {
                     -w /app \
                     ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
                     -c "
+                        export HOME=/app
                         # Install bandit using the container's python/pip
                         python -m pip install --no-cache-dir bandit --user
                 
                         # Run Bandit scan on the mounted code
-                        ~/.local/bin/bandit -r users/ appointments/ -o reports/bandit-report.json -f json
+                        \$HOME/.local/bin/bandit -r users/ appointments/ -o reports/bandit-report.json -f json
                     "
                 '''
                 
