@@ -146,6 +146,9 @@ pipeline {
         stage('Security (Bandit SAST)') {
             steps {
                 script {
+                    echo 'Installing python3-venv package...'
+                    sh 'sudo apt update && sudo apt install -y python3-venv'
+                    
                     echo 'Starting Static Analysis (SAST) with Bandit...'
         
                     // 1. Use a Python Virtual Environment (venv) for isolated installation 
