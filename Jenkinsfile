@@ -139,7 +139,6 @@ pipeline {
                     -w /app \
                     ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
                     -c "
-                        chmod -R a+w reports
                         python -m pip install --no-cache-dir bandit 
                         bandit -r users/ appointments/ -o reports/bandit-report.json -f json
                     "
