@@ -130,13 +130,24 @@ pipeline {
         // 4. SECURITY STAGE: Bandit Analysis
         stage('Security (Bandit)') {
             steps {
-                echo 'Running Bandit security analysis on the Django backend...'
+                echo 'Running Bandit security analysis on the Django backend inside a container...'
                 
-                // 🛠️ FIX: Use python to execute the pip module
-                sh 'python3 -m pip install bandit' // OR sh 'python -m pip install bandit' 
+                sh """
+                docker run --rm \
+                    -v "${WORKSPACE}":/app \   # <-- HERE IS WHERE ${WORKSPACE} IS USED
+                    -w /app \
+                    ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
+                    sh -c "
+                        # Install bandit using the container's python/pip
+                        python -m pip install --no-cache-dir bandit 
+        
+                        # Run Bandit scan on the mounted code
+                        bandit -r users/ appointments/ -o reports/bandit-report.json -f json
+                    "
+                """
                 
-                // Now run the scan
-                sh 'bandit -r users/ appointments/ -o reports/bandit-report.json -f json'
+                // Note: You must ensure the 'reports' directory exists for the output file
+                // You can add 'sh 'mkdir -p reports' if needed, but the Test stage already does this.
             }
         }
 
