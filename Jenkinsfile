@@ -142,10 +142,10 @@ pipeline {
                     ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
                     -c "
                         # Install bandit using the container's python/pip
-                        python -m pip install --no-cache-dir bandit 
+                        python -m pip install --no-cache-dir bandit --user
                 
                         # Run Bandit scan on the mounted code
-                        bandit -r users/ appointments/ -o reports/bandit-report.json -f json
+                        ~/.local/bin/bandit -r users/ appointments/ -o reports/bandit-report.json -f json
                     "
                 '''
                 
