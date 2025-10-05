@@ -152,57 +152,57 @@ pipeline {
             }
         }
 
-        // 5. DEPLOY STAGE: Deploy to Staging (Test) Environment
-        stage('Deploy to Staging (Docker Compose)') {
-            steps {
-                echo 'Deploying to Staging Environment using Docker Compose on test server...'
+        // // 5. DEPLOY STAGE: Deploy to Staging (Test) Environment
+        // stage('Deploy to Staging (Docker Compose)') {
+        //     steps {
+        //         echo 'Deploying to Staging Environment using Docker Compose on test server...'
 
-                // Use SSH to log into the staging server and execute deployment
-                // (Requires ssh-creds-staging to be set up)
-                withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
-                    // Copy the docker-compose.yml and run it
-                    sh "scp -i ${KEY_FILE} docker-compose.yml ${USER}@staging.example.com:/opt/staging/docker-compose.yml"
-                    sh "ssh -i ${KEY_FILE} ${USER}@staging.example.com 'cd /opt/staging && docker-compose pull && docker-compose up -d --remove-orphans'"
-                }
-                echo 'Staging deployment complete. Run acceptance tests now.'
-            }
-        }
+        //         // Use SSH to log into the staging server and execute deployment
+        //         // (Requires ssh-creds-staging to be set up)
+        //         withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
+        //             // Copy the docker-compose.yml and run it
+        //             sh "scp -i ${KEY_FILE} docker-compose.yml ${USER}@staging.example.com:/opt/staging/docker-compose.yml"
+        //             sh "ssh -i ${KEY_FILE} ${USER}@staging.example.com 'cd /opt/staging && docker-compose pull && docker-compose up -d --remove-orphans'"
+        //         }
+        //         echo 'Staging deployment complete. Run acceptance tests now.'
+        //     }
+        // }
 
-        // 6. RELEASE STAGE: Promote to Production (Kubernetes)
-        stage('Release to Production (Kubernetes)') {
-            steps {
-                echo 'Promoting Staging build to Production environment via Kubernetes...'
-                // This step applies your k8s manifests using kubectl
-                withKubeConfig(credentialsId: 'kube-creds', contextName: K8S_CONTEXT) {
-                    sh "kubectl apply -f k8s/ -n ${K8S_NAMESPACE}"
-                    // Optional: Wait for the deployment to roll out successfully
-                    sh "kubectl rollout status deployment/backend-deployment -n ${K8S_NAMESPACE}"
-                    sh "kubectl rollout status deployment/frontend-deployment -n ${K8S_NAMESPACE}"
-                }
-                echo 'Production release complete.'
-            }
-        }
+        // // 6. RELEASE STAGE: Promote to Production (Kubernetes)
+        // stage('Release to Production (Kubernetes)') {
+        //     steps {
+        //         echo 'Promoting Staging build to Production environment via Kubernetes...'
+        //         // This step applies your k8s manifests using kubectl
+        //         withKubeConfig(credentialsId: 'kube-creds', contextName: K8S_CONTEXT) {
+        //             sh "kubectl apply -f k8s/ -n ${K8S_NAMESPACE}"
+        //             // Optional: Wait for the deployment to roll out successfully
+        //             sh "kubectl rollout status deployment/backend-deployment -n ${K8S_NAMESPACE}"
+        //             sh "kubectl rollout status deployment/frontend-deployment -n ${K8S_NAMESPACE}"
+        //         }
+        //         echo 'Production release complete.'
+        //     }
+        // }
 
-        // 7. MONITORING STAGE: Datadog Integration
-        stage('Monitoring & Alerting (Datadog)') {
-            steps {
-                echo 'Sending deployment event to Datadog and ensuring monitoring is active...'
-                // Send an event to Datadog to mark the deployment (Requires DATADOG_API_KEY credential)
-                withCredentials([string(credentialsId: 'DATADOG_API_KEY', variable: 'DD_API_KEY')]) {
-                    sh """
-                    curl -X POST "https://api.datadoghq.com/api/v1/events" \
-                    -H "Content-Type: application/json" \
-                    -H "DD-API-KEY: ${DD_API_KEY}" \
-                    -d '{
-                        "title": "Deployment Successful",
-                        "text": "Build ${BUILD_ID} deployed to production.",
-                        "tags": ["env:prod", "service:booking-system"],
-                        "alert_type": "info"
-                    }'
-                    """
-                }
-                echo 'Datadog deployment event logged.'
-            }
-        }
+        // // 7. MONITORING STAGE: Datadog Integration
+        // stage('Monitoring & Alerting (Datadog)') {
+        //     steps {
+        //         echo 'Sending deployment event to Datadog and ensuring monitoring is active...'
+        //         // Send an event to Datadog to mark the deployment (Requires DATADOG_API_KEY credential)
+        //         withCredentials([string(credentialsId: 'DATADOG_API_KEY', variable: 'DD_API_KEY')]) {
+        //             sh """
+        //             curl -X POST "https://api.datadoghq.com/api/v1/events" \
+        //             -H "Content-Type: application/json" \
+        //             -H "DD-API-KEY: ${DD_API_KEY}" \
+        //             -d '{
+        //                 "title": "Deployment Successful",
+        //                 "text": "Build ${BUILD_ID} deployed to production.",
+        //                 "tags": ["env:prod", "service:booking-system"],
+        //                 "alert_type": "info"
+        //             }'
+        //             """
+        //         }
+        //         echo 'Datadog deployment event logged.'
+        //     }
+        // }
     }
 }
