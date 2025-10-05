@@ -180,29 +180,40 @@ pipeline {
         // 5. DEPLOY STAGE: Deploy to Staging (Test) Environment
         stage('Deploy to Staging (Docker Compose)') {
             steps {
-                echo 'Deploying to Staging Environment using Docker Compose on test server...'
-                
-                withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
+                script {
+                    // Define the release tag based on the successful build
+                    def releaseVersion = "v1.0.${env.BUILD_NUMBER}"
+                    echo 'Deploying to Staging Environment using Docker Compose on test server...'
                     
-                    // 1. Copy required files (scp command)
-                    // Added options to bypass strict host key checking
-                    sh "scp -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null docker-compose.yml staging.env ${USER}@${STAGING_SERVER}:/opt/staging/"
-                    
-                    // 2. SSH into the server and perform the deployment (ssh command)
-                    // Added options to bypass strict host key checking
+                    // 1. Create a copy of the original Docker Compose file
+                    sh "cp docker-compose.yml docker-compose-staging.yml"
+
+                    // 2. Substitute the 'build' instruction with the 'image' instruction for the backend and frontend services.
                     sh """
-                    ssh -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USER}@${STAGING_SERVER} '
-                        cd /opt/staging &&
-                        
-                        # Pull the latest tagged images
-                        docker-compose -f docker-compose.yml --env-file staging.env pull
-                        
-                        # Bring up the services
-                        docker-compose -f docker-compose.yml --env-file staging.env up -d --remove-orphans
-                    '
+                    # Inject image tags using the build number and registry variable
+                    sed -i '/backend:/a \ \ \ \ \ \ \ \ image: ${DOCKER_REGISTRY}/booking-backend:${releaseVersion}' docker-compose-staging.yml
+                    sed -i '/frontend:/a \ \ \ \ \ \ \ \ image: ${DOCKER_REGISTRY}/booking-frontend:${releaseVersion}' docker-compose-staging.yml
+
+                    # Delete all 'build:' lines and 'volumes:' lines to force image pull instead of local build
+                    sed -i '/build:/d' docker-compose-staging.yml
+                    sed -i '/volumes:/d' docker-compose-staging.yml
                     """
+                    
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
+                        // 3. Copy required files (sending the modified docker-compose-staging.yml to the server)
+                        sh "scp -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null docker-compose-staging.yml staging.env ${USER}@${STAGING_SERVER}:/opt/staging/docker-compose.yml"
+                        
+                        // 4. SSH into the server and perform the deployment
+                        sh """
+                        ssh -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USER}@${STAGING_SERVER} '
+                            cd /opt/staging &&
+                            docker-compose -f docker-compose.yml --env-file staging.env pull
+                            docker-compose -f docker-compose.yml --env-file staging.env up -d --remove-orphans
+                        '
+                        """
+                    }
+                    echo 'Staging deployment complete. Run acceptance tests now.'
                 }
-                echo 'Staging deployment complete. Run acceptance tests now.'
             }
         }
     }
