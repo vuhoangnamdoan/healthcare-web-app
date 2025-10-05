@@ -130,6 +130,7 @@ pipeline {
         // 4. SECURITY STAGE: Bandit Analysis
         stage('Security (Bandit)') {
             steps {
+                sh 'mkdir -p reports'
                 echo 'Running Bandit security analysis on the Django backend inside a container...'
                 
                 sh '''
