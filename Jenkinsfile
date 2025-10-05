@@ -134,14 +134,14 @@ pipeline {
                 
                 sh '''
                 docker run --rm \
-                    --entrypoint /bin/sh \
+                    --entrypoint /bin/sh \  # Ensures we use /bin/sh
                     -v "${WORKSPACE}":/app \
                     -w /app \
                     ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
-                    sh -c "
+                    -c "
                         # Install bandit using the container's python/pip
                         python -m pip install --no-cache-dir bandit 
-        
+                
                         # Run Bandit scan on the mounted code
                         bandit -r users/ appointments/ -o reports/bandit-report.json -f json
                     "
