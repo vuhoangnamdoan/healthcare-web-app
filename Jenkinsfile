@@ -146,28 +146,33 @@ pipeline {
         stage('Security (Bandit SAST)') {
             steps {
                 script {                    
-                    def hostUid = sh(script: 'id -u', returnStdout: true).trim()
+                    def containerName = "bandit-scan-${env.BUILD_NUMBER}"
                     sh 'mkdir -p reports'
                     echo 'Starting Static Analysis (SAST) with Bandit...'
         
                     // 1. Use a Python Virtual Environment (venv) for isolated installation 
                     // This is the CRITICAL fix for permission errors.
                     sh '''
-                    docker run --rm \
-                        --entrypoint /bin/sh \
+                    docker run -d --name ${containerName} \
                         -v "${WORKSPACE}":/app \
                         -w /app \
                         ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
-                        -c "
+                        /bin/sh -c "
                             # Ensure the tool is installed (it will be fast if already cached in the container)
                             pip install --no-cache-dir bandit 
                             
                             # Run Bandit scan. Output path must be relative to the /app mount.
                             # Use --skip-plugins to speed up scan if necessary.
-                            bandit -r . -f json -o reports/bandit-report.json --exit-zero
-                            bandit -r . -f html -o reports/bandit-report.html --exit-zero
-                            chown -R ''' + hostUid + ''' reports/
+                            mkdir -p /tmp/reports
+                            bandit -r . -f json -o /tmp/reports/bandit-report.json --exit-zero
+                            bandit -r . -f html -o /tmp/reports/bandit-report.html --exit-zero
                         "
+                    docker wait ${containerName}
+
+                    docker cp ${containerName}:/tmp/reports/bandit-report.json ./reports/
+                    docker cp ${containerName}:/tmp/reports/bandit-report.html ./reports/
+
+                    docker rm ${containerName}
                     '''
                     
                     // 2. Archive the generated reports (Artifacts)
