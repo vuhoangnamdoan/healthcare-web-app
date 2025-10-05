@@ -131,7 +131,7 @@ pipeline {
         stage('Security (Bandit)') {
             steps {
                 echo 'Running Bandit security analysis on the Django backend inside a container...'
-
+                
                 sh '''
                 docker run --rm \
                     --entrypoint /bin/sh \
@@ -139,11 +139,18 @@ pipeline {
                     -w /app \
                     ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
                     -c "
+                        # Install bandit using the container's python/pip
                         python -m pip install --no-cache-dir bandit 
+                
+                        # Run Bandit scan on the mounted code
                         bandit -r users/ appointments/ -o reports/bandit-report.json -f json
                     "
                 '''
+                
+                // Note: You must ensure the 'reports' directory exists for the output file
+                // You can add 'sh 'mkdir -p reports' if needed, but the Test stage already does this.
             }
+
         }
 
         // 5. DEPLOY STAGE: Deploy to Staging (Test) Environment
