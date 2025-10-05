@@ -136,6 +136,7 @@ pipeline {
                 sh '''
                 docker run --rm \
                     --entrypoint /bin/sh \
+                    -u $(id -u):$(id -g) \
                     -v "${WORKSPACE}":/app \
                     -w /app \
                     ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
