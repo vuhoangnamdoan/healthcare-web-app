@@ -144,9 +144,6 @@ pipeline {
                         bandit -r users/ appointments/ -o reports/bandit-report.json -f json
                     "
                 '''
-                
-                // Note: You must ensure the 'reports' directory exists for the output file
-                // You can add 'sh 'mkdir -p reports' if needed, but the Test stage already does this.
             }
         }
 
