@@ -1,4 +1,4 @@
-f// Jenkinsfile: DevOps Pipeline for Healthcare Booking System
+// Jenkinsfile: DevOps Pipeline for Healthcare Booking System
 
 pipeline {
     agent any 
@@ -150,7 +150,6 @@ pipeline {
                 // Note: You must ensure the 'reports' directory exists for the output file
                 // You can add 'sh 'mkdir -p reports' if needed, but the Test stage already does this.
             }
-
         }
 
         // 5. DEPLOY STAGE: Deploy to Staging (Test) Environment
