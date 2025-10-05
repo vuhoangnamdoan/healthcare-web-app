@@ -3,10 +3,12 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: healthdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+    env_file:
+      - ./staging.env
+    # environment:
+    #   POSTGRES_DB: healthdb
+    #   POSTGRES_USER: postgres
+    #   POSTGRES_PASSWORD: postgres123
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -16,9 +18,11 @@ services:
     build: .
     ports:
       - "8000:8000"
-    environment:
-      - DEBUG=True
-      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/healthdb
+    env_file:
+      - ./staging.env
+    # environment:
+    #   - DEBUG=True
+    #   - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/healthdb
     depends_on:
       - postgres
     volumes:
