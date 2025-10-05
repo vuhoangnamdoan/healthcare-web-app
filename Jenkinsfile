@@ -246,28 +246,22 @@ pipeline {
         stage('Deploy to Staging (Docker Compose)') {
             steps {
                 echo 'Deploying to Staging Environment using Docker Compose on test server...'
-        
+                
                 withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
                     
-                    // 1. Copy required files (docker-compose.yml and potentially a .env or config file)
-                    // Use ${STAGING_SERVER} for the correct host.
-                    // Assuming your deployment files are in a 'deploy' folder.
-                    sh "scp -i ${KEY_FILE} -r docker-compose.yml config-file.env ${STAGING_SERVER}:/opt/staging/"
+                    // 1. Copy required files
+                    // 🚨 CHANGED: Copy 'staging.env' which you created.
+                    sh "scp -i ${KEY_FILE} docker-compose.yml staging.env ${USER}@${STAGING_SERVER}:/opt/staging/"
                     
                     // 2. SSH into the server and perform the deployment
                     sh """
-                    ssh -i ${KEY_FILE} ${STAGING_SERVER} '
-                        cd /opt/staging && 
+                    ssh -i ${KEY_FILE} ${USER}@${STAGING_SERVER} '
+                        cd /opt/staging
                         
-                        # Use sed to replace a placeholder tag (e.g., latest or __BUILD_ID__)
-                        # with the actual Jenkins BUILD_ID in the docker-compose.yml file before running.
-                        # Example: sed -i "s/__BUILD_ID__/${BUILD_ID}/g" docker-compose.yml
+                        # Use the -f flag to point docker-compose to the environment file
+                        docker-compose -f docker-compose.yml --env-file staging.env pull
                         
-                        # For high reliability, we explicitly pull the tagged images from the Docker Registry
-                        docker-compose pull 
-                        
-                        # Bring up the services
-                        docker-compose up -d --remove-orphans
+                        docker-compose -f docker-compose.yml --env-file staging.env up -d --remove-orphans
                     '
                     """
                 }
