@@ -145,31 +145,26 @@ pipeline {
 
         stage('Security (Bandit SAST)') {
             steps {
-                script {
-                    echo 'Installing python3-venv package...'
-                    sh 'sudo apt update && sudo apt install -y python3-venv'
-                    
+                script {                    
                     echo 'Starting Static Analysis (SAST) with Bandit...'
         
                     // 1. Use a Python Virtual Environment (venv) for isolated installation 
                     // This is the CRITICAL fix for permission errors.
                     sh '''
-                        # Create and activate an isolated environment
-                        python3 -m venv bandit_venv
-                        . bandit_venv/bin/activate
-                        
-                        # Upgrade pip and install Bandit locally inside the venv
-                        pip install --upgrade pip
-                        pip install bandit
-        
-                        # Run Bandit scan recursively on all code ('.')
-                        # -f json/html specifies the format, -o specifies the output file
-                        # --exit-zero ensures the Jenkins stage passes even if findings are present
-                        bandit -r . -f json -o bandit-report.json --exit-zero
-                        bandit -r . -f html -o bandit-report.html --exit-zero
-                        
-                        # Exit the virtual environment
-                        deactivate
+                    docker run --rm \
+                        --entrypoint /bin/sh \
+                        -v "${WORKSPACE}":/app \
+                        -w /app \
+                        ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
+                        -c "
+                            # Ensure the tool is installed (it will be fast if already cached in the container)
+                            pip install --no-cache-dir bandit 
+                            
+                            # Run Bandit scan. Output path must be relative to the /app mount.
+                            # Use --skip-plugins to speed up scan if necessary.
+                            bandit -r . -f json -o reports/bandit-report.json --exit-zero
+                            bandit -r . -f html -o reports/bandit-report.html --exit-zero
+                        "
                     '''
                     
                     // 2. Archive the generated reports (Artifacts)
