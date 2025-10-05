@@ -162,8 +162,8 @@ pipeline {
                             
                             # Run Bandit scan. Output path must be relative to the /app mount.
                             # Use --skip-plugins to speed up scan if necessary.
-                            bandit -r . -f json -o reports/bandit-report.json --exit-zero
-                            bandit -r . -f html -o reports/bandit-report.html --exit-zero
+                            bandit -r . -f json -o bandit-report.json --exit-zero
+                            bandit -r . -f html -o bandit-report.html --exit-zero
                         "
                     '''
                     
