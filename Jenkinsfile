@@ -166,9 +166,9 @@ pipeline {
                         def highIssues = jsonReport.results.findAll { it.severity == 'HIGH' }
         
                         if (issueCount > 0) {
-                            echo "🚨 Bandit found ${issueCount} potential security issue(s), including ${highIssues.size()} HIGH severity issues. Review the HTML report for details."
+                            echo "Bandit found ${issueCount} potential security issue(s), including ${highIssues.size()} HIGH severity issues. Review the HTML report for details."
                         } else {
-                            echo "✅ Bandit scan completed successfully with no issues found."
+                            echo "Bandit scan completed successfully with no issues found."
                         }
                     } else {
                         echo "Bandit JSON report not found. The scan may have failed or the 'bandit-report.json' file could not be created."
@@ -176,71 +176,6 @@ pipeline {
                 }
             }
         }
-
-        // stage('Security (Bandit SAST)') {
-        //     steps {
-        //         script {                    
-        //             def containerName = "bandit-scan-${env.BUILD_NUMBER}"
-        //             sh 'mkdir -p reports'
-        //             echo 'Starting Static Analysis (SAST) with Bandit...'
-        
-        //             // 1. Use a Python Virtual Environment (venv) for isolated installation 
-        //             // This is the CRITICAL fix for permission errors.
-        //             sh """
-        //             docker run -d --name ${containerName} \
-        //                 -v "${WORKSPACE}":/app \
-        //                 -w /app \
-        //                 ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
-        //                 /bin/sh -c "
-        //                     # Ensure the tool is installed (it will be fast if already cached in the container)
-        //                     pip install --no-cache-dir bandit 
-                            
-        //                     # Run Bandit scan. Output path must be relative to the /app mount.
-        //                     # Use --skip-plugins to speed up scan if necessary.
-        //                     mkdir -p /tmp/reports
-        //                     bandit -r . -f json -o /tmp/reports/bandit-report.json --exit-zero
-        //                     bandit -r . -f html -o /tmp/reports/bandit-report.html --exit-zero
-        //                 "
-        //             docker wait ${containerName}
-
-        //             docker cp ${containerName}:/tmp/reports/bandit-report.json ./reports/
-        //             docker cp ${containerName}:/tmp/reports/bandit-report.html ./reports/
-
-        //             docker rm ${containerName}
-        //             """
-                    
-        //             // 2. Archive the generated reports (Artifacts)
-        //             archiveArtifacts artifacts: 'reports/bandit-report.json, reports/bandit-report.html', allowEmptyArchive: true
-        
-        //             // 3. Publish the HTML report for easy viewing in Jenkins UI
-        //             publishHTML(target: [
-        //                         allowMissing: false,
-        //                         alwaysLinkToLastBuild: false,
-        //                         keepAll: true,
-        //                         reportDir: 'reports',
-        //                         reportFiles: 'bandit-report.html',
-        //                         reportName: 'Bandit Security Report'
-        //                     ])
-        
-        //             // 4. Parse the JSON report to display a summary in the console log
-        //             if (fileExists('reports/bandit-report.json')) {
-        //                 def jsonReport = readJSON file: 'reports/bandit-report.json'
-        //                 def issueCount = jsonReport.results.size()
-                        
-        //                 // Identify high-severity issues for a high HD grade
-        //                 def highIssues = jsonReport.results.findAll { it.severity == 'HIGH' }
-        
-        //                 if (issueCount > 0) {
-        //                     echo "🚨 Bandit found ${issueCount} potential security issue(s), including ${highIssues.size()} HIGH severity issues. Review the HTML report for details."
-        //                 } else {
-        //                     echo "✅ Bandit scan completed successfully with no issues found."
-        //                 }
-        //             } else {
-        //                 echo "Bandit JSON report not found. The scan may have failed or the 'bandit-report.json' file could not be created."
-        //             }
-        //         }
-        //     }
-        // }
 
         // 5. DEPLOY STAGE: Deploy to Staging (Test) Environment
         stage('Deploy to Staging (Docker Compose)') {
