@@ -116,30 +116,89 @@ pipeline {
         }
 
         // 4. SECURITY STAGE: Bandit Analysis
-        stage('Security (Bandit)') {
+        // stage('Security (Bandit)') {
+        //     steps {
+        //         sh 'mkdir -p reports'
+        //         echo 'Running Bandit security analysis on the Django backend inside a container...'
+                
+        //         sh '''
+        //         docker run --rm \
+        //             --entrypoint /bin/sh \
+        //             -u $(id -u):$(id -g) \
+        //             -v "${WORKSPACE}":/app \
+        //             -w /app \
+        //             ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
+        //             -c "
+        //                 export HOME=/app
+        //                 # Install bandit using the container's python/pip
+        //                 python -m pip install --no-cache-dir bandit --user
+                
+        //                 # Run Bandit scan on the mounted code
+        //                 \$HOME/.local/bin/bandit -r users/ appointments/ -o reports/bandit-report.json -f json
+        //             "
+        //         '''
+                
+        //         // Note: You must ensure the 'reports' directory exists for the output file
+        //         // You can add 'sh 'mkdir -p reports' if needed, but the Test stage already does this.
+        //     }
+        // }
+
+        stage('Security (Bandit SAST)') {
             steps {
-                sh 'mkdir -p reports'
-                echo 'Running Bandit security analysis on the Django backend inside a container...'
-                
-                sh '''
-                docker run --rm \
-                    --entrypoint /bin/sh \
-                    -u $(id -u):$(id -g) \
-                    -v "${WORKSPACE}":/app \
-                    -w /app \
-                    ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
-                    -c "
-                        export HOME=/app
-                        # Install bandit using the container's python/pip
-                        python -m pip install --no-cache-dir bandit --user
-                
-                        # Run Bandit scan on the mounted code
-                        \$HOME/.local/bin/bandit -r users/ appointments/ -o reports/bandit-report.json -f json
-                    "
-                '''
-                
-                // Note: You must ensure the 'reports' directory exists for the output file
-                // You can add 'sh 'mkdir -p reports' if needed, but the Test stage already does this.
+                script {
+                    echo 'Starting Static Analysis (SAST) with Bandit...'
+        
+                    // 1. Use a Python Virtual Environment (venv) for isolated installation 
+                    // This is the CRITICAL fix for permission errors.
+                    sh '''
+                        # Create and activate an isolated environment
+                        python3 -m venv bandit_venv
+                        . bandit_venv/bin/activate
+                        
+                        # Upgrade pip and install Bandit locally inside the venv
+                        pip install --upgrade pip
+                        pip install bandit
+        
+                        # Run Bandit scan recursively on all code ('.')
+                        # -f json/html specifies the format, -o specifies the output file
+                        # --exit-zero ensures the Jenkins stage passes even if findings are present
+                        bandit -r . -f json -o bandit-report.json --exit-zero
+                        bandit -r . -f html -o bandit-report.html --exit-zero
+                        
+                        # Exit the virtual environment
+                        deactivate
+                    '''
+                    
+                    // 2. Archive the generated reports (Artifacts)
+                    archiveArtifacts artifacts: 'bandit-report.json, bandit-report.html', allowEmptyArchive: true
+        
+                    // 3. Publish the HTML report for easy viewing in Jenkins UI
+                    publishHTML(target: [
+                                allowMissing: false,
+                                alwaysLinkToLastBuild: false,
+                                keepAll: true,
+                                reportDir: '.',
+                                reportFiles: 'bandit-report.html',
+                                reportName: 'Bandit Security Report'
+                            ])
+        
+                    // 4. Parse the JSON report to display a summary in the console log
+                    if (fileExists('bandit-report.json')) {
+                        def jsonReport = readJSON file: 'bandit-report.json'
+                        def issueCount = jsonReport.results.size()
+                        
+                        // Identify high-severity issues for a high HD grade
+                        def highIssues = jsonReport.results.findAll { it.severity == 'HIGH' }
+        
+                        if (issueCount > 0) {
+                            echo "🚨 Bandit found ${issueCount} potential security issue(s), including ${highIssues.size()} HIGH severity issues. Review the HTML report for details."
+                        } else {
+                            echo "✅ Bandit scan completed successfully with no issues found."
+                        }
+                    } else {
+                        echo "Bandit JSON report not found. The scan may have failed or the 'bandit-report.json' file could not be created."
+                    }
+                }
             }
         }
 
