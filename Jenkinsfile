@@ -121,7 +121,8 @@ pipeline {
                         -Dsonar.projectKey=vuhoangnamdoan_healthcare-web-app \
                         -Dsonar.organization=nam-doan \
                         -Dsonar.host.url=https://sonarcloud.io \
-                        -Dsonar.sources=. -Dsonar.token=${SONAR_TOKEN_ENV}"
+                        -Dsonar.sources=. -Dsonar.token=${SONAR_TOKEN_ENV}
+                    """
                 }
             }
         }
