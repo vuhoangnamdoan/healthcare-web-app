@@ -184,18 +184,20 @@ pipeline {
                 
                 withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
                     
-                    // 1. Copy required files
-                    // 🚨 CHANGED: Copy 'staging.env' which you created.
-                    sh "scp -i ${KEY_FILE} docker-compose.yml staging.env ${USER}@${STAGING_SERVER}:/opt/staging/"
+                    // 1. Copy required files (scp command)
+                    // Added options to bypass strict host key checking
+                    sh "scp -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null docker-compose.yml staging.env ${USER}@${STAGING_SERVER}:/opt/staging/"
                     
-                    // 2. SSH into the server and perform the deployment
+                    // 2. SSH into the server and perform the deployment (ssh command)
+                    // Added options to bypass strict host key checking
                     sh """
-                    ssh -i ${KEY_FILE} ${USER}@${STAGING_SERVER} '
-                        cd /opt/staging
+                    ssh -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USER}@${STAGING_SERVER} '
+                        cd /opt/staging &&
                         
-                        # Use the -f flag to point docker-compose to the environment file
+                        # Pull the latest tagged images
                         docker-compose -f docker-compose.yml --env-file staging.env pull
                         
+                        # Bring up the services
                         docker-compose -f docker-compose.yml --env-file staging.env up -d --remove-orphans
                     '
                     """
@@ -203,21 +205,5 @@ pipeline {
                 echo 'Staging deployment complete. Run acceptance tests now.'
             }
         }
-
-        // // 5. DEPLOY STAGE: Deploy to Staging (Test) Environment
-        // stage('Deploy to Staging (Docker Compose)') {
-        //     steps {
-        //         echo 'Deploying to Staging Environment using Docker Compose on test server...'
-
-        //         // Use SSH to log into the staging server and execute deployment
-        //         // (Requires ssh-creds-staging to be set up)
-        //         withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
-        //             // Copy the docker-compose.yml and run it
-        //             sh "scp -i ${KEY_FILE} docker-compose.yml ${USER}@staging.example.com:/opt/staging/docker-compose.yml"
-        //             sh "ssh -i ${KEY_FILE} ${USER}@staging.example.com 'cd /opt/staging && docker-compose pull && docker-compose up -d --remove-orphans'"
-        //         }
-        //         echo 'Staging deployment complete. Run acceptance tests now.'
-        //     }
-        // }
     }
 }
