@@ -146,6 +146,7 @@ pipeline {
         stage('Security (Bandit SAST)') {
             steps {
                 script {                    
+                    sh 'mkdir -p reports'
                     echo 'Starting Static Analysis (SAST) with Bandit...'
         
                     // 1. Use a Python Virtual Environment (venv) for isolated installation 
@@ -162,27 +163,27 @@ pipeline {
                             
                             # Run Bandit scan. Output path must be relative to the /app mount.
                             # Use --skip-plugins to speed up scan if necessary.
-                            bandit -r . -f json -o bandit-report.json --exit-zero
-                            bandit -r . -f html -o bandit-report.html --exit-zero
+                            bandit -r . -f json -o reports/bandit-report.json --exit-zero
+                            bandit -r . -f html -o reports/bandit-report.html --exit-zero
                         "
                     '''
                     
                     // 2. Archive the generated reports (Artifacts)
-                    archiveArtifacts artifacts: 'bandit-report.json, bandit-report.html', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'reports/bandit-report.json, reports/bandit-report.html', allowEmptyArchive: true
         
                     // 3. Publish the HTML report for easy viewing in Jenkins UI
                     publishHTML(target: [
                                 allowMissing: false,
                                 alwaysLinkToLastBuild: false,
                                 keepAll: true,
-                                reportDir: '.',
+                                reportDir: 'reports',
                                 reportFiles: 'bandit-report.html',
                                 reportName: 'Bandit Security Report'
                             ])
         
                     // 4. Parse the JSON report to display a summary in the console log
-                    if (fileExists('bandit-report.json')) {
-                        def jsonReport = readJSON file: 'bandit-report.json'
+                    if (fileExists('reports/bandit-report.json')) {
+                        def jsonReport = readJSON file: 'reports/bandit-report.json'
                         def issueCount = jsonReport.results.size()
                         
                         // Identify high-severity issues for a high HD grade
