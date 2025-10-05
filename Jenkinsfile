@@ -120,11 +120,11 @@ pipeline {
         
                     sh """ 
                     # 1. Run container in detached mode (-d)
-                    docker run -d --name ${containerName} \\
-                        --entrypoint /bin/sh \\  // 🚨 FINAL FIX: Override the missing ENTRYPOINT script
-                        -v "${WORKSPACE}":/app \\
+                    docker run -d --name ${containerName} \
+                        --entrypoint /bin/sh \
+                        -v "${WORKSPACE}":/app \
                         -w /app \\
-                        ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \\
+                        ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
                         -c "
                             # Install Bandit 
                             pip install --no-cache-dir bandit 
