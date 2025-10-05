@@ -1,0 +1,31 @@
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /opt/production/
+permissions:
+  - object: /opt/production
+    pattern: "**"
+    owner: your_prod_user # e.g., namdoan
+    mode: 755
+    type:
+      - file
+      - directory
+hooks:
+  # 1. Stop the currently running services immediately before installing new files
+  BeforeInstall:
+    - location: scripts/stop_app.sh
+      timeout: 300
+      runas: your_prod_user
+
+  # 2. Start the new services after files are installed
+  ApplicationStart:
+    - location: scripts/start_app.sh
+      timeout: 300
+      runas: your_prod_user
+
+  # 3. Basic smoke tests to verify the application is healthy
+  ApplicationStop:
+    - location: scripts/validate_service.sh
+      timeout: 300
+      runas: your_prod_user
