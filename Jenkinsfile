@@ -10,7 +10,7 @@ pipeline {
         DOCKER_REGISTRY = 'vuhoangnamdoan' 
 
         // Staging/Test Server SSH details
-        STAGING_SERVER = 'namdoan@172.26.108.190' 
+        STAGING_SERVER = 'namdoan@172.26.111.255' 
 
         // --- KUBERNETES/RELEASE VARIABLES ---
         K8S_CONTEXT = 'docker-desktop' // e.g., 'microk8s'
