@@ -131,11 +131,12 @@ pipeline {
         stage('Security (Bandit)') {
             steps {
                 echo 'Running Bandit security analysis on the Django backend...'
-                // Run Bandit on the Python code (recursive scan on backend apps)
+                
+                // Ensure Bandit is installed in the environment/container
+                sh 'pip install bandit' 
+                
+                // Now run the scan
                 sh 'bandit -r users/ appointments/ -o reports/bandit-report.json -f json'
-
-                // Optional: Check the exit code of Bandit to fail the stage on HIGH severity issues
-                // Example: sh('bandit -r . || exit 1') 
             }
         }
 
