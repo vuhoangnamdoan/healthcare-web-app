@@ -134,7 +134,7 @@ pipeline {
                 
                 sh '''
                 docker run --rm \
-                    --entrypoint /bin/sh \  # Ensures we use /bin/sh
+                    --entrypoint /bin/sh \
                     -v "${WORKSPACE}":/app \
                     -w /app \
                     ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
