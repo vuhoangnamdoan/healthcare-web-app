@@ -6,10 +6,6 @@ pipeline {
     environment {
         // --- CONFIGURE THESE ENVIRONMENT VARIABLES ---
 
-        // SonarQube installation name (as configured in Jenkins -> Manage Jenkins -> Global Tool Configuration)
-        // SONAR_HOME = tool 'SonarQubeScanner'
-        // SONAR_URL = 'http://localhost:9000'
-
         // Docker registry (e.g., your Docker Hub username)
         DOCKER_REGISTRY = 'vuhoangnamdoan' 
 
@@ -115,34 +111,6 @@ pipeline {
             }
         }
 
-        // 4. SECURITY STAGE: Bandit Analysis
-        // stage('Security (Bandit)') {
-        //     steps {
-        //         sh 'mkdir -p reports'
-        //         echo 'Running Bandit security analysis on the Django backend inside a container...'
-                
-        //         sh '''
-        //         docker run --rm \
-        //             --entrypoint /bin/sh \
-        //             -u $(id -u):$(id -g) \
-        //             -v "${WORKSPACE}":/app \
-        //             -w /app \
-        //             ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
-        //             -c "
-        //                 export HOME=/app
-        //                 # Install bandit using the container's python/pip
-        //                 python -m pip install --no-cache-dir bandit --user
-                
-        //                 # Run Bandit scan on the mounted code
-        //                 \$HOME/.local/bin/bandit -r users/ appointments/ -o reports/bandit-report.json -f json
-        //             "
-        //         '''
-                
-        //         // Note: You must ensure the 'reports' directory exists for the output file
-        //         // You can add 'sh 'mkdir -p reports' if needed, but the Test stage already does this.
-        //     }
-        // }
-
         stage('Security (Bandit SAST)') {
             steps {
                 script {                    
@@ -152,7 +120,7 @@ pipeline {
         
                     // 1. Use a Python Virtual Environment (venv) for isolated installation 
                     // This is the CRITICAL fix for permission errors.
-                    sh '''
+                    sh """
                     docker run -d --name ${containerName} \
                         -v "${WORKSPACE}":/app \
                         -w /app \
@@ -173,7 +141,7 @@ pipeline {
                     docker cp ${containerName}:/tmp/reports/bandit-report.html ./reports/
 
                     docker rm ${containerName}
-                    '''
+                    """
                     
                     // 2. Archive the generated reports (Artifacts)
                     archiveArtifacts artifacts: 'reports/bandit-report.json, reports/bandit-report.html', allowEmptyArchive: true
