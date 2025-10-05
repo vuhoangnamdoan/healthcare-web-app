@@ -139,17 +139,9 @@ pipeline {
                     -w /app \
                     ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
                     -c "
-                        # 1. Give everyone permission to write to the reports directory
                         chmod -R a+w reports 
-        
-                        # 2. Install bandit
                         python -m pip install --no-cache-dir bandit 
-                
-                        # 3. Run Bandit scan
                         bandit -r users/ appointments/ -o reports/bandit-report.json -f json
-        
-                        # 4. Optional: Give everyone read access to the created file
-                        chmod a+r reports/bandit-report.json
                     "
                 '''
                 
