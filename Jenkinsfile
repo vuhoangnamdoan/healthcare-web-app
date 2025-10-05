@@ -146,6 +146,7 @@ pipeline {
         stage('Security (Bandit SAST)') {
             steps {
                 script {                    
+                    def hostUid = sh(script: 'id -u', returnStdout: true).trim()
                     sh 'mkdir -p reports'
                     echo 'Starting Static Analysis (SAST) with Bandit...'
         
@@ -165,6 +166,7 @@ pipeline {
                             # Use --skip-plugins to speed up scan if necessary.
                             bandit -r . -f json -o reports/bandit-report.json --exit-zero
                             bandit -r . -f html -o reports/bandit-report.html --exit-zero
+                            chown -R ''' + hostUid + ''' reports/
                         "
                     '''
                     
