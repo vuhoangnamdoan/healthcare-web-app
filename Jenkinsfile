@@ -1,4 +1,4 @@
-// Jenkinsfile: DevOps Pipeline for Healthcare Booking System
+f// Jenkinsfile: DevOps Pipeline for Healthcare Booking System
 
 pipeline {
     agent any 
@@ -131,7 +131,7 @@ pipeline {
         stage('Security (Bandit)') {
             steps {
                 echo 'Running Bandit security analysis on the Django backend inside a container...'
-                
+
                 sh '''
                 docker run --rm \
                     --entrypoint /bin/sh \
@@ -139,11 +139,17 @@ pipeline {
                     -w /app \
                     ${DOCKER_REGISTRY}/booking-backend:${BUILD_ID} \
                     -c "
-                        # Install bandit using the container's python/pip
+                        # 1. Give everyone permission to write to the reports directory
+                        chmod -R a+w reports 
+        
+                        # 2. Install bandit
                         python -m pip install --no-cache-dir bandit 
                 
-                        # Run Bandit scan on the mounted code
+                        # 3. Run Bandit scan
                         bandit -r users/ appointments/ -o reports/bandit-report.json -f json
+        
+                        # 4. Optional: Give everyone read access to the created file
+                        chmod a+r reports/bandit-report.json
                     "
                 '''
                 
