@@ -242,6 +242,39 @@ pipeline {
         //     }
         // }
 
+        // 5. DEPLOY STAGE: Deploy to Staging (Test) Environment
+        stage('Deploy to Staging (Docker Compose)') {
+            steps {
+                echo 'Deploying to Staging Environment using Docker Compose on test server...'
+        
+                withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
+                    
+                    // 1. Copy required files (docker-compose.yml and potentially a .env or config file)
+                    // Use ${STAGING_SERVER} for the correct host.
+                    // Assuming your deployment files are in a 'deploy' folder.
+                    sh "scp -i ${KEY_FILE} -r docker-compose.yml config-file.env ${STAGING_SERVER}:/opt/staging/"
+                    
+                    // 2. SSH into the server and perform the deployment
+                    sh """
+                    ssh -i ${KEY_FILE} ${STAGING_SERVER} '
+                        cd /opt/staging && 
+                        
+                        # Use sed to replace a placeholder tag (e.g., latest or __BUILD_ID__)
+                        # with the actual Jenkins BUILD_ID in the docker-compose.yml file before running.
+                        # Example: sed -i "s/__BUILD_ID__/${BUILD_ID}/g" docker-compose.yml
+                        
+                        # For high reliability, we explicitly pull the tagged images from the Docker Registry
+                        docker-compose pull 
+                        
+                        # Bring up the services
+                        docker-compose up -d --remove-orphans
+                    '
+                    """
+                }
+                echo 'Staging deployment complete. Run acceptance tests now.'
+            }
+        }
+
         // // 5. DEPLOY STAGE: Deploy to Staging (Test) Environment
         // stage('Deploy to Staging (Docker Compose)') {
         //     steps {
