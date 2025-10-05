@@ -183,6 +183,7 @@ pipeline {
                 script {
                     // Define the release tag based on the successful build
                     def releaseVersion = "v1.0.${env.BUILD_NUMBER}"
+
                     echo 'Deploying to Staging Environment using Docker Compose on test server...'
                     
                     // 1. Create a copy of the original Docker Compose file
@@ -199,15 +200,25 @@ pipeline {
                     sed -i '/volumes:/d' docker-compose-staging.yml
                     """
                     
+
                     withCredentials([sshUserPrivateKey(credentialsId: 'ssh-creds-staging', keyFileVariable: 'KEY_FILE', usernameVariable: 'USER')]) {
-                        // 3. Copy required files (sending the modified docker-compose-staging.yml to the server)
-                        sh "scp -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null docker-compose-staging.yml staging.env ${USER}@${STAGING_SERVER}:/opt/staging/docker-compose.yml"
                         
+                        // 3a. Copy the modified Docker Compose file and rename it on the server
+                        sh "scp -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null docker-compose-staging.yml ${USER}@${STAGING_SERVER}:/opt/staging/docker-compose.yml"
+                        
+                        // 3b. Copy the staging.env file (must be separate since we are copying to a specific filename above)
+                        sh "scp -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null staging.env ${USER}@${STAGING_SERVER}:/opt/staging/staging.env"
+
+
                         // 4. SSH into the server and perform the deployment
                         sh """
                         ssh -i ${KEY_FILE} -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${USER}@${STAGING_SERVER} '
                             cd /opt/staging &&
+                            
+                            # Pull the latest tagged images (using the updated docker-compose.yml)
                             docker-compose -f docker-compose.yml --env-file staging.env pull
+                            
+                            # Bring up the services
                             docker-compose -f docker-compose.yml --env-file staging.env up -d --remove-orphans
                         '
                         """
