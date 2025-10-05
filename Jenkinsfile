@@ -191,8 +191,8 @@ pipeline {
                     // 2. Substitute the 'build' instruction with the 'image' instruction for the backend and frontend services.
                     sh """
                     # Inject image tags using the build number and registry variable
-                    sed -i '/backend:/a \ \ \ \ \ \ \ \ image: ${DOCKER_REGISTRY}/booking-backend:${releaseVersion}' docker-compose-staging.yml
-                    sed -i '/frontend:/a \ \ \ \ \ \ \ \ image: ${DOCKER_REGISTRY}/booking-frontend:${releaseVersion}' docker-compose-staging.yml
+                    sed -i '/backend:/a \\ \\ \\ \\ \\ \\ \\ \\ image: ${DOCKER_REGISTRY}/booking-backend:${releaseVersion}' docker-compose-staging.yml
+                    sed -i '/frontend:/a \\ \\ \\ \\ \\ \\ \\ \\ image: ${DOCKER_REGISTRY}/booking-frontend:${releaseVersion}' docker-compose-staging.yml
 
                     # Delete all 'build:' lines and 'volumes:' lines to force image pull instead of local build
                     sed -i '/build:/d' docker-compose-staging.yml
