@@ -132,8 +132,8 @@ pipeline {
             steps {
                 echo 'Running Bandit security analysis on the Django backend...'
                 
-                // Ensure Bandit is installed in the environment/container
-                sh 'pip install bandit' 
+                // 🛠️ FIX: Use python to execute the pip module
+                sh 'python3 -m pip install bandit' // OR sh 'python -m pip install bandit' 
                 
                 // Now run the scan
                 sh 'bandit -r users/ appointments/ -o reports/bandit-report.json -f json'
